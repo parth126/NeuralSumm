@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 import extract_features
-import model
+import model3 as model
 
 parser = argparse.ArgumentParser(description='LSTM based Spell Checker')
 
@@ -49,7 +49,7 @@ parser.add_argument('--max_len', type=int, default=40,
                     help='Maximum sequence length')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
-parser.add_argument('--seed', type=int, default=1111,
+parser.add_argument('--seed', type=int, default=1892,
                     help='random seed')
 parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
@@ -277,6 +277,17 @@ def train(input_variable, target_variable, context_weights, encoder, encoder_opt
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
 
     final_output = final_output.transpose(0, 1)
+    
+    weights = torch.ones(final_output.size())
+    
+    weights[(target_variable.cpu() == 0).data] = 0.05
+    weights[(target_variable.cpu() == 1).data] = 0.95
+    print(weights.size())
+    print(final_output.size())
+
+    if(args.cuda):
+        weights = weights.cuda()
+    #criterion.weight = weights    
 
     loss += criterion(final_output, target_variable)
     
@@ -516,11 +527,11 @@ if __name__== "__main__":
         print("Dictionary and model built. Vectorizing the corpus now...")
          
         train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
-        train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1))
+        train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
         train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
 
         valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
-        valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1))
+        valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1).tolist())
         valid_context_weights = corpus.vectorize_list(valid_df, 'topics', args.ntopic, 'context')
 
         print("Corpus and Context Vectorized. Starting Training...")
