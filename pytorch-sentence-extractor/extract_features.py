@@ -9,6 +9,7 @@ import torch
 import ast
 from itertools import izip
 from nltk.corpus import stopwords
+from nltk.stem.snowball import EnglishStemmer
 from nltk.tokenize import word_tokenize
 from nltk import ngrams
 from numpy.random import choice as random_choice, randint as random_randint, shuffle as random_shuffle, rand
@@ -16,6 +17,7 @@ from numpy.random import choice as random_choice, randint as random_randint, shu
 class Featurize(object):
     def __init__(self):
         self.stoplist = set(stopwords.words('english'))
+        self.stemmer = EnglishStemmer()
 
     def get_features(self, sentence, feature_type):    
  
@@ -36,7 +38,7 @@ class Featurize(object):
     # Add new get_feature functions here
     def get_unigram_features(self, sentence):
         unigrams = word_tokenize(sentence.lower())
-        f = [stem(u) for u in unigrams if u not in self.stoplist]
+        f = [self.stemmer.stem(u) for u in unigrams if u not in self.stoplist]
         return(f)
 
     def get_bigram_features(self, sentence):
