@@ -341,7 +341,6 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
     criterion = nn.BCELoss()
 
     ''' Load the training and testing data '''
-    
     TrainData = TensorContextDataset(train_ip, train_op, train_context_weights)
     TrainDataLoader = torch.utils.data.DataLoader(TrainData, batch_size=args.batch_size, shuffle=True)
     ValData = TensorContextDataset(valid_ip, valid_op, valid_context_weights)
@@ -516,11 +515,11 @@ if __name__== "__main__":
         print("Dictionary and model built. Vectorizing the corpus now...")
          
         train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
-        train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1))
+        train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
         train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
 
         valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
-        valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1))
+        valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1).tolist())
         valid_context_weights = corpus.vectorize_list(valid_df, 'topics', args.ntopic, 'context')
 
         print("Corpus and Context Vectorized. Starting Training...")

@@ -3,8 +3,8 @@ import json
 import pandas as pd
 import numpy as np
 
-sentence_matching = './data/sentences.json'
-data_folder = './data/papers'
+sentence_matching = './data/sentences.json.small'
+data_folder = './data/papers.small'
 
 with open(sentence_matching) as f:
     f1 = json.load(f)
@@ -44,10 +44,10 @@ DF6[['doc_id','body_sid','sentence']] = DF5[['doc_id', 'body_sid', 'body_sentenc
 DF6['is_in_abstract'][DF5.abstract_sid == 1000] = 0
 DF6['is_in_abstract'][DF5.abstract_sid != 1000] = 1
 print("Here")
-DF6.to_pickle('./data/acl_data.pkl')
+DF6.to_pickle('./data/acl_data.pkl.small')
 
 flattened = []
-with open('./data/topic_documentwise') as f5:
+with open('./data/topic_documentwise.small') as f5:
     f6 = json.load(f5)
     
 for k in f6:
@@ -57,7 +57,7 @@ DF7 = pd.DataFrame(flattened, columns = ['doc_id', 'context'])
 
 DF8 = pd.merge(DF6,DF7, on=['doc_id'])
 
-DF8.to_pickle('./data/acl_data_context.pkl')
+DF8.to_pickle('./data/acl_data_context.pkl.small')
 
 DF9 = DF8.reindex(np.random.permutation(DF8.index))
 

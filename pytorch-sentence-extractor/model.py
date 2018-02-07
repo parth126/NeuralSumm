@@ -109,7 +109,7 @@ class AttentionClassifier(nn.Module):
         self.dropout = nn.Dropout(self.dropout_p)
         self.embedding = nn.Embedding(self.ntopic, self.context_embedding_size)
         self.embedding.weight.requires_grad=True
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(1)
         self.init_weights()
 
     def init_weights(self):
@@ -129,17 +129,21 @@ class AttentionClassifier(nn.Module):
         
         ''' Attention Layer ''' 
         ''' Assign weights to each input timestamp, based on contet embedding and sentence embedding '''
-        Attn = self.attn(merged_input)  
+        Attn = self.attn(merged_input) 
+        #print("AAA:", Attn.size())
+        
         attn_weights = self.softmax(Attn)
         attn_applied = torch.bmm(attn_weights.unsqueeze(0).transpose(0,1), encoder_outputs.transpose(0,1))
+        #print("EEE: ",attn_applied.size())
+
         attn_applied = attn_applied.transpose(0,1)
 
         attn_combined = torch.cat((attn_applied[0], context_embedding), 1)
        	classifier_hidden = self.hidden_layer(attn_combined)
         classifier_hidden = self.dropout(classifier_hidden)
+        #print("GGG: ", classifier_hidden.size())
 
         classifier_output = self.output_layer(classifier_hidden)
         classifier_output = self.sigmoid_activation(classifier_output)
-        
         return classifier_output, attn_weights       
 
