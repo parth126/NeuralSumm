@@ -37,7 +37,7 @@ parser.add_argument('--hhid', type=int, default=100,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
-parser.add_argument('--lr', type=float, default=20,
+parser.add_argument('--lr', type=float, default=0.0001,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
@@ -75,6 +75,10 @@ parser.add_argument('--dry_run', action='store_true',
                     help='whether this run is just to check if code is working')
 parser.add_argument('--p_threshold', type=float, default=0.5,
                     help='Threshold used while predicting based on classifier prob')
+parser.add_argument('--weight0', type=float, default=0.05,
+                    help='Weight for calculating weighted loss when target variable is 0')
+parser.add_argument('--weight1', type=float, default=0.95,
+                    help='Weight for calculating weighted loss when target variable is 1')
 
 args = parser.parse_args()
 
@@ -281,15 +285,15 @@ def train(input_variable, target_variable, context_weights, encoder, encoder_opt
 
     weights = torch.ones(final_output.size())
 
-    weights[(target_variable.cpu() == 0).data] = 0.05
-    weights[(target_variable.cpu() == 1).data] = 0.95
+    weights[(target_variable.cpu() == 0).data] = args.weight0
+    weights[(target_variable.cpu() == 1).data] = args.weight1
     #print(weights.size())
     #print(final_output.size())
 
     #print("SS: ", criterion(final_output, target_variable))
     #criterion.reduce = False
     #print("SS2: ", criterion(final_output, target_variable))
-    
+
     if(args.cuda):
         weights = weights.cuda()
     criterion.weight = weights
@@ -418,39 +422,62 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
 
         ''' Evaluate on the validation set after each epoch '''
         print("Evaluating the model")
-        Eval_Correct = 0
-        Eval_PCorrect = 0
-        Eval_NCorrect = 0
-        loss = 0.0
-        BatchN = 0.0
+        run_evaluation(ValDataLoader, encoder, classifier, epoch, valid_ip, valid_op)
 
-        for input_v, target_v, context_v in ValDataLoader:
-            input_variable = Variable(input_v).transpose(0,1).contiguous()
-            target_variable = Variable(target_v).transpose(0,1).contiguous()
-            context_weights = Variable(context_v).transpose(0,1).contiguous()
 
-            if args.cuda:
-                input_variable = input_variable.cuda()
-                target_variable = target_variable.cuda()
-                context_weights = context_weights.cuda()
+def evalIters(encoder, classifier, batch_size, print_every=100, learning_rate=0.0001, predict=False):
 
-            C, P, N, L = Evaluate(input_variable, target_variable, context_weights, encoder, classifier)
-            
-            Eval_Correct += C
-            Eval_PCorrect += P
-            Eval_NCorrect += N
-            loss += L
-            BatchN += 1.0
+    train_loss_total = 0  # Reset every print_every
 
-        Eval_Accuracy = Eval_Correct*1.0/valid_ip.size(0)
-        Correct_Accuracy = Eval_PCorrect*1.0/sum(valid_op)
-        Incorrect_Accuracy = Eval_NCorrect*1.0  /(len(valid_op) - sum(valid_op))
-        Eval_Loss = loss / BatchN
+    ''' define optimizer and loss function '''
+    encoder_optimizer = optim.Adam(filter(lambda p: p.requires_grad, encoder.parameters()),lr=learning_rate)
+    classifier_optimizer = optim.Adam(classifier.parameters(), lr=learning_rate)
+    criterion = nn.BCELoss()
+
+    ''' Load the evaluation data '''
+
+    EvalData = TensorContextDataset(eval_ip, eval_op, eval_context_weights)
+    EvalDataLoader = torch.utils.data.DataLoader(EvalData, batch_size=args.batch_size)
+    run_evaluation(EvalDataLoader, encoder, classifier, -1, eval_ip, eval_op, predict)
+
+def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, current_op, predict = False):
+    Eval_Correct = 0
+    Eval_PCorrect = 0
+    Eval_NCorrect = 0
+    loss = 0.0
+    BatchN = 0.0
+    for input_v, target_v, context_v in valdataloader:
+        input_variable = Variable(input_v).transpose(0,1).contiguous()
+        target_variable = Variable(target_v).transpose(0,1).contiguous()
+        context_weights = Variable(context_v).transpose(0,1).contiguous()
+
+        if args.cuda:
+            input_variable = input_variable.cuda()
+            target_variable = target_variable.cuda()
+            context_weights = context_weights.cuda()
+
+        C, P, N, L, O = Evaluate(input_variable, target_variable, context_weights, encoder, classifier)
+        if (predict):
+            print("Output:", O)
+            print("Expected:", target_variable)
+
+        Eval_Correct += C
+        Eval_PCorrect += P
+        Eval_NCorrect += N
+        loss += L
+        BatchN += 1.0
+
+    Eval_Accuracy = Eval_Correct*1.0/current_ip.size(0)
+    Correct_Accuracy = Eval_PCorrect*1.0/sum(current_op)
+    Incorrect_Accuracy = Eval_NCorrect*1.0  /(len(current_op) - sum(current_op))
+    Eval_Loss = loss / BatchN
+    if (epoch != -1):
         Eval_Log = ('%s: %d, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Epoch", epoch, "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
-        with open('./data/Evaluation.log', 'a') as f:
-            f.write(Eval_Log+'\n')
-        print(Eval_Log)
-
+    else:
+        Eval_Log = ('%s  %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Evaluation Results:", "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
+    with open('./data/Evaluation.log', 'a') as f:
+        f.write(Eval_Log+'\n')
+    print(Eval_Log)
 
 #-----------------------------------------------------------------------------#
 # Main interface
@@ -465,6 +492,10 @@ if __name__== "__main__":
             print('Directory already exists. Existing models might be overwritten.')
         else:
             raise
+        print("Start")
+        train_df = pd.read_pickle(args.data + '/' + Train_Data)
+        valid_df = pd.read_pickle(args.data + '/' + Valid_Data)
+        eval_df = pd.read_pickle(args.data + '/' + Eval_Data)
 
     if(args.mode =='train'):
 
@@ -472,10 +503,6 @@ if __name__== "__main__":
 
         ''' Load and vectorize data '''
 
-        print("Start")
-        train_df = pd.read_pickle(args.data + '/' + Train_Data)
-        valid_df = pd.read_pickle(args.data + '/' + Valid_Data)
-        eval_df = pd.read_pickle(args.data + '/' + Eval_Data)
 
         if(args.load_existing):
 
@@ -558,7 +585,7 @@ if __name__== "__main__":
         print("Corpus and Context Vectorized. Starting Training...")
 
         criterion = nn.BCELoss()
-        trainIters(Encoder, Classifier, args.batch_size, args.log_interval)
+        trainIters(Encoder, Classifier, args.batch_size, args.log_interval, args.lr, False)
 
     elif(args.mode == 'evaluate'):
         print("Preparing to evaluate the model")
@@ -591,12 +618,12 @@ if __name__== "__main__":
 
         eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
-        eval_context_weights = context.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
+        eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
 
         print("Corpus and context Vectorized. Starting Evaluation...")
 
         criterion = nn.BCELoss()
-        evalIters(Encoder, Classifier, args.batch_size, args.log_interval)
+        evalIters(Encoder, Classifier, args.batch_size, args.log_interval, args.lr, False)
 
     elif(args.mode == 'predict'):
         print("Preparing to predict")
@@ -608,8 +635,8 @@ if __name__== "__main__":
         try:
             with open('./data/models/Encoder.pt', 'rb') as f1:
                 Encoder = torch.load(f1)
-            with open('./data/models/Decoder.pt', 'rb') as f2:
-                Decoder = torch.load(f2)
+            with open('./data/models/Classifier.pt', 'rb') as f2:
+                Classifier = torch.load(f2)
             print("Using existing models")
         except IOError as e:
             print("Error: ", os.strerror(e.errno))
@@ -628,12 +655,12 @@ if __name__== "__main__":
 
         eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
-        eval_context_weights = context.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
+        eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
 
         print("Corpus Vectorized. Starting Prediction...")
 
         criterion = nn.BCELoss()
-        predictIters(Encoder, Classifier, args.batch_size, args.log_interval)
+        evalIters(Encoder, Classifier, args.batch_size, args.log_interval, args.lr, True)
 
 
 # TODO: include Predictiters and evaliters
