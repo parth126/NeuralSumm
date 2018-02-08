@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 import extract_features
-import model3 as model
+import model as model
 
 parser = argparse.ArgumentParser(description='LSTM based Spell Checker')
 
@@ -70,10 +70,12 @@ parser.add_argument('--log_interval', type=int, default=50,
 parser.add_argument('--cembed', type=float, default=10,
                     help='context embedding size')
 parser.add_argument('--ntopic', type=float, default=500,
-                    help='maximum number of topics per document')                    
+                    help='maximum number of topics per document')
 parser.add_argument('--dry_run', action='store_true',
-                    help='whether this run is just to check if code is working')                    
-                    
+                    help='whether this run is just to check if code is working')
+parser.add_argument('--p_threshold', type=float, default=0.5,
+                    help='Threshold used while predicting based on classifier prob')
+
 args = parser.parse_args()
 
 # Set the random seed manually for reproducibility.
@@ -184,13 +186,13 @@ def timeSince(since, percent):
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
-''' Print random results for attention visualization 
+''' Print random results for attention visualization
 def PrintRandomAttentionVisualization():
     input_data = input_variable.data.numpy()
     for i in range(input_data.shape[1]):
         for j in range(input_data.shape[0]):
             print(bcolors.return_color(attention_weights[i, j].data.numpy()), Idx2word(input_variable.data.numpy()[j, i]), end = '')
-        print("")    
+        print("")
 '''
 
 ''' Print random results for visualization
@@ -261,36 +263,36 @@ def train(input_variable, target_variable, context_weights, encoder, encoder_opt
     encoder_outputs = encoder_outputs.cuda() if args.cuda else encoder_outputs
     encoder_optimizer.zero_grad()
     classifier_optimizer.zero_grad()
- 
+
     ''' Encoder Forward Pass '''
     for i_step in range(args.max_len):
         encoder_output, encoder_hidden = encoder(input_variable[i_step], encoder_hidden)
-        encoder_outputs[i_step] = encoder_output[0] 
+        encoder_outputs[i_step] = encoder_output[0]
 
     context = Variable(torch.LongTensor(range(context_weights.size(0)))) #  the context weights will decide which context embeddings are non-zero
     if args.cuda:
-        context = context.cuda() 
+        context = context.cuda()
 
     ''' Regular classifier without any attention
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
-    ''' 
+    '''
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
 
     final_output = final_output.transpose(0, 1)
-    
+
     weights = torch.ones(final_output.size())
-    
+
     weights[(target_variable.cpu() == 0).data] = 0.05
     weights[(target_variable.cpu() == 1).data] = 0.95
-    print(weights.size())
-    print(final_output.size())
+    #print(weights.size())
+    #print(final_output.size())
 
     if(args.cuda):
         weights = weights.cuda()
-    #criterion.weight = weights    
+    #criterion.weight = weights
 
     loss += criterion(final_output, target_variable)
-    
+
     ''' Back propogation '''
     loss.backward()
     torch.nn.utils.clip_grad_norm(encoder.parameters(), args.clip)
@@ -303,10 +305,10 @@ def Evaluate(input_variable, target_variable, context_weights, encoder, classifi
 
     context = Variable(torch.LongTensor(range(context_weights.size(0)))) #  the context weights will decide which context embeddings are non-zero
     if args.cuda:
-        context = context.cuda() 
+        context = context.cuda()
 
     output, loss = Predict(input_variable, target_variable, context, context_weights, encoder, classifier)
-    output = (output >= 0.5).float()
+    output = (output >= args.p_threshold).float()
     Correct = 0
     for i in range(output.size(1)):
         out = output.data[:,i]
@@ -324,17 +326,17 @@ def Predict(input_variable, target_variable, context, context_weights, encoder, 
     ''' Encoder Forward Pass '''
     for i_step in range(args.max_len):
         encoder_output, encoder_hidden = encoder(input_variable[i_step], encoder_hidden)
-        encoder_outputs[i_step] = encoder_output[0] 
+        encoder_outputs[i_step] = encoder_output[0]
     ''' Classifier forward pass '''
-    
+
     ''' Regular classifier without any attention
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
-    ''' 
+    '''
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
-                                
+
     final_output = final_output.transpose(0, 1)
     loss += criterion(final_output, target_variable)
- 
+
     return(final_output, loss.data[0])
 
 
@@ -352,7 +354,7 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
     criterion = nn.BCELoss()
 
     ''' Load the training and testing data '''
-    
+
     TrainData = TensorContextDataset(train_ip, train_op, train_context_weights)
     TrainDataLoader = torch.utils.data.DataLoader(TrainData, batch_size=args.batch_size, shuffle=True)
     ValData = TensorContextDataset(valid_ip, valid_op, valid_context_weights)
@@ -395,7 +397,7 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
         with open('./data/models/'+filename1, 'wb') as f:     # Saving the trained models for every epoch
             torch.save(encoder, f)
         with open('./data/models/Encoder.pt', 'wb') as f:  # Latest copy to be used in next iteration or when resuming training
-            torch.save(encoder, f)  
+            torch.save(encoder, f)
         with open('./data/models/'+filename2, 'wb') as f:     # Saving the trained models for every epoch
             torch.save(classifier, f)
         with open('./data/models/Classifier.pt', 'wb') as f:  # Latest copy to be used in next iteration or when resuming training
@@ -422,17 +424,17 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
             Eval_Correct += C
             loss += L
             BatchN += 1.0
-    
+
         Eval_Accuracy = Eval_Correct*1.0/valid_ip.size(0)
         Eval_Loss = loss / BatchN
         Eval_Log = ('%s: %d, %s: %.4f, %s: %.4f' % ("Epoch", epoch, "Evaluation Accuracy", Eval_Accuracy, "Evaluation Loss", Eval_Loss))
         with open('./data/Evaluation.log', 'a') as f:
-            f.write(Eval_Log+'\n')    
+            f.write(Eval_Log+'\n')
         print(Eval_Log)
 
 
 #-----------------------------------------------------------------------------#
-# Main interface          
+# Main interface
 #-----------------------------------------------------------------------------#
 
 if __name__== "__main__":
@@ -446,7 +448,7 @@ if __name__== "__main__":
             raise
 
     if(args.mode =='train'):
-    
+
         print("Preparing to Train the model")
 
         ''' Load and vectorize data '''
@@ -458,7 +460,7 @@ if __name__== "__main__":
 
         if(args.load_existing):
 
-            try: 
+            try:
                 with open('./data/models/Encoder.pt', 'rb') as f1:
                     Encoder = torch.load(f1)
                 with open('./data/models/Decoder.pt', 'rb') as f2:
@@ -488,7 +490,7 @@ if __name__== "__main__":
             except:
                 print("Could not load existing corpus Dictionary. Does the file exist?")
                 sys.exit(-1)
-                                        
+
         else:
 
             if(args.build_dict):
@@ -497,10 +499,10 @@ if __name__== "__main__":
                 corpus.add_to_dict(train_df, 'unigrams', 'sentence')
                 corpus.add_to_dict(valid_df, 'unigrams', 'sentence')
                 corpus.add_to_dict(eval_df, 'unigrams', 'sentence')
-            
+
                 with open('./data/models/corpus_dictionary.pkl', 'wb') as output:
                     pickle.dump(corpus, output, pickle.HIGHEST_PROTOCOL)
-            
+
             else:
                 try:
                     with open('./data/models/corpus_dictionary.pkl', 'rb') as input:
@@ -509,7 +511,7 @@ if __name__== "__main__":
                 except:
                     print("Could not load existing corpus Dictionary. Does the file exist?")
                     sys.exit(-1)
-            
+
             print("Building the initial models")
             ntokens = len(corpus.dictionary)
             ntopic = args.ntopic
@@ -525,7 +527,7 @@ if __name__== "__main__":
                 Classifier = Classifier.cuda()
 
         print("Dictionary and model built. Vectorizing the corpus now...")
-         
+
         train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
         train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
         train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
@@ -538,7 +540,7 @@ if __name__== "__main__":
 
         criterion = nn.BCELoss()
         trainIters(Encoder, Classifier, args.batch_size, args.log_interval)
-        
+
     elif(args.mode == 'evaluate'):
         print("Preparing to evaluate the model")
 
@@ -546,7 +548,7 @@ if __name__== "__main__":
 
         print("Start")
 
-        try: 
+        try:
             with open('./data/models/Encoder.pt', 'rb') as f1:
                 Encoder = torch.load(f1)
             with open('./data/models/Classifier.pt', 'rb') as f2:
@@ -584,7 +586,7 @@ if __name__== "__main__":
 
         print("Start")
 
-        try: 
+        try:
             with open('./data/models/Encoder.pt', 'rb') as f1:
                 Encoder = torch.load(f1)
             with open('./data/models/Decoder.pt', 'rb') as f2:
@@ -608,11 +610,11 @@ if __name__== "__main__":
         eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
         eval_context_weights = context.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
-        
+
         print("Corpus Vectorized. Starting Prediction...")
 
         criterion = nn.BCELoss()
         predictIters(Encoder, Classifier, args.batch_size, args.log_interval)
-        
-       
+
+
 # TODO: include Predictiters and evaliters
