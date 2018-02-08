@@ -318,18 +318,18 @@ def Evaluate(input_variable, target_variable, context_weights, encoder, classifi
     Correct = 0
     PosCorrect = 0
     NegCorrect = 0
-    
+
     for i in range(output.size(1)):
         out = output.data[:,i]
         Correct += torch.equal(out, target_variable.data[:,i])*1
-        PosCorrect += sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1)) 
+        PosCorrect += sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1))
         #print(sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1)))
         NegCorrect += sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 0))
         #print(sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 0)))
     #print("P: ", PosCorrect, sum(sum(target_variable.data == 1)))
     #print("N: ", NegCorrect, sum(sum(target_variable.data == 0)))
-    #print("C: ", Correct, target_variable.size())   
-    return(Correct, PosCorrect, NegCorrect, loss)
+    #print("C: ", Correct, target_variable.size())
+    return(Correct, PosCorrect, NegCorrect, loss, output)
 
 def Predict(input_variable, target_variable, context, context_weights, encoder, classifier):
 
