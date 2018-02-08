@@ -55,9 +55,9 @@ parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
 parser.add_argument('--epoch', type=str,  default=500,
                     help='Number of Epochs to train')
-parser.add_argument('--embed', type=float, default=100,
+parser.add_argument('--embed', type=float, default=300,
                     help='Character Embedding Size')
-parser.add_argument('--load-existing', action='store_true',
+parser.add_argument('--load_existing', action='store_true',
                     help='If existing models should be loaded')
 parser.add_argument('--build_dict', action='store_true',
                     help='If feature-index mapping needs to be built')
@@ -93,9 +93,9 @@ print("Start")
 
 if(args.dry_run == 1):
     print("Here")
-    Train_Data = 'acl_data_context.pkl.smallest'
-    Valid_Data = 'acl_data_context.pkl.smallest'
-    Eval_Data = 'acl_data_context.pkl.smallest'
+    Train_Data = 'acl_data_context_sampled.pkl.small'
+    Valid_Data = 'acl_data_context_sampled.pkl.small'
+    Eval_Data = 'acl_data_context_sampled.pkl.small'
 else:
     Train_Data = 'train_context_sampled.pkl'
     Valid_Data = 'valid_context_sampled.pkl'
@@ -275,20 +275,26 @@ def train(input_variable, target_variable, context_weights, encoder, encoder_opt
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     ''' 
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
-
     final_output = final_output.transpose(0, 1)
+    #print("AA: ", final_output)
+    #print("BB: ", target_variable)
     
     weights = torch.ones(final_output.size())
     
-    weights[(target_variable.cpu() == 0).data] = 0.05
-    weights[(target_variable.cpu() == 1).data] = 0.95
-    print(weights.size())
-    print(final_output.size())
+    weights[(target_variable.cpu() == 0).data] = 0.25
+    weights[(target_variable.cpu() == 1).data] = 0.75
 
+    #print("SS: ", criterion(final_output, target_variable))
+    #criterion.reduce = False
+    #print("SS2: ", criterion(final_output, target_variable))
+    
     if(args.cuda):
         weights = weights.cuda()
-    #criterion.weight = weights    
-
+    criterion.weight = weights
+    #print("ww: ", weights) 
+    #print("PP: ",criterion(final_output, target_variable))
+    #raw_input()   
+    #criterion.reduce = True
     loss += criterion(final_output, target_variable)
     
     ''' Back propogation '''
@@ -308,10 +314,20 @@ def Evaluate(input_variable, target_variable, context_weights, encoder, classifi
     output, loss = Predict(input_variable, target_variable, context, context_weights, encoder, classifier)
     output = (output >= 0.5).float()
     Correct = 0
+    PosCorrect = 0
+    NegCorrect = 0
+    
     for i in range(output.size(1)):
         out = output.data[:,i]
         Correct += torch.equal(out, target_variable.data[:,i])*1
-    return(Correct, loss)
+        PosCorrect += sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1)) 
+        #print(sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1)))
+        NegCorrect += sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 0))
+        #print(sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 0)))
+    #print("P: ", PosCorrect, sum(sum(target_variable.data == 1)))
+    #print("N: ", NegCorrect, sum(sum(target_variable.data == 0)))
+    #print("C: ", Correct, target_variable.size())   
+    return(Correct, PosCorrect, NegCorrect, loss)
 
 def Predict(input_variable, target_variable, context, context_weights, encoder, classifier):
 
@@ -405,6 +421,8 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
         ''' Evaluate on the validation set after each epoch '''
         print("Evaluating the model")
         Eval_Correct = 0
+        Eval_PCorrect = 0
+        Eval_NCorrect = 0
         loss = 0.0
         BatchN = 0.0
 
@@ -418,14 +436,19 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
                 target_variable = target_variable.cuda()
                 context_weights = context_weights.cuda()
 
-            C, L = Evaluate(input_variable, target_variable, context_weights, encoder, classifier)
+            C, P, N, L = Evaluate(input_variable, target_variable, context_weights, encoder, classifier)
+            
             Eval_Correct += C
+            Eval_PCorrect += P
+            Eval_NCorrect += N
             loss += L
             BatchN += 1.0
     
         Eval_Accuracy = Eval_Correct*1.0/valid_ip.size(0)
+        Correct_Accuracy = Eval_PCorrect*1.0/sum(valid_op)
+        Incorrect_Accuracy = Eval_NCorrect*1.0  /(len(valid_op) - sum(valid_op))
         Eval_Loss = loss / BatchN
-        Eval_Log = ('%s: %d, %s: %.4f, %s: %.4f' % ("Epoch", epoch, "Evaluation Accuracy", Eval_Accuracy, "Evaluation Loss", Eval_Loss))
+        Eval_Log = ('%s: %d, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Epoch", epoch, "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
         with open('./data/Evaluation.log', 'a') as f:
             f.write(Eval_Log+'\n')    
         print(Eval_Log)
@@ -458,10 +481,18 @@ if __name__== "__main__":
 
         if(args.load_existing):
 
+            try:
+                with open('./data/models/corpus_dictionary.pkl', 'rb') as input:
+                    corpus = pickle.load(input)
+                print("Using existing corpus Dictionary")
+            except:
+                print("Could not load existing corpus Dictionary. Does the file exist?")
+                sys.exit(-1)
+
             try: 
                 with open('./data/models/Encoder.pt', 'rb') as f1:
                     Encoder = torch.load(f1)
-                with open('./data/models/Decoder.pt', 'rb') as f2:
+                with open('./data/models/Classifier.pt', 'rb') as f2:
                     Classifier = torch.load(f2)
                 print("Using existing models")
 
@@ -481,13 +512,7 @@ if __name__== "__main__":
                    Encoder = Encoder.cuda()
                    Classifier = Classifier.cuda()
 
-            try:
-                with open('./data/models/corpus_dictionary.pkl', 'rb') as input:
-                    corpus = pickle.load(input)
-                print("Using existing corpus Dictionary")
-            except:
-                print("Could not load existing corpus Dictionary. Does the file exist?")
-                sys.exit(-1)
+
                                         
         else:
 
