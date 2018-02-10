@@ -55,7 +55,7 @@ parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
 parser.add_argument('--epoch', type=str,  default=500,
                     help='Number of Epochs to train')
-parser.add_argument('--embed', type=float, default=300,
+parser.add_argument('--embed', type=float, default=100,
                     help='Character Embedding Size')
 parser.add_argument('--load_existing', action='store_true',
                     help='If existing models should be loaded')
@@ -99,13 +99,15 @@ print("Start")
 
 if(args.dry_run == 1):
     print("Here")
-    Train_Data = 'acl_data_context_sampled.pkl.small'
-    Valid_Data = 'acl_data_context_sampled.pkl.small'
-    Eval_Data = 'acl_data_context_sampled.pkl.small'
+    Train_Data = 'acl_data_context_docwise_test_sorted.pkl'
+    Valid_Data = 'acl_data_context_docwise_test_sorted.pkl'
+    Eval_Data = 'acl_data_context_docwise_test_sorted.pkl'
+    Embed_Data = 'initial_embeddings.df'
 else:
     Train_Data = 'train_context_sampled.pkl'
     Valid_Data = 'valid_context_sampled.pkl'
     Eval_Data = 'eval_context_sampled.pkl'
+    Embed_Data = 'initial_embeddings.df'
 
 #-----------------------------------------------------------------------------#
 # Helper functions
@@ -227,15 +229,45 @@ def PrintRandomResults(encoder, decoder, n=30):
             P = Idx2sent(output).encode('utf-8')
 
         print('P', P)
-        print("Correct_2?: ", Idx2sent(output) == Idx2sent(pair[1]), "Log Likelihood: ", log_prob.data.cpu().numpy().transpose().mean(), "Loss: ", loss) 
+        print("Correct_2?: ", Idx2sent(output) == Idx2sent(pair[1]), "Log Likelihood: ", log_prob.data.cpu().numpy().transpose().mean(), "Loss: ", loss)
         print('')
 '''
+
+def init_embedding(embedding_size, ndictionary, embedding_weights_df):
+    if not ((ndictionary) or (embedding_weights_df )):
+        return
+    temp_embedding_weights = []
+    temp_embedding_weights_object = {}
+    found_embedding_weights = 0
+    notfound_embedding_weights = 0
+    for _,tok in embedding_weights_df.iterrows():
+        token = tok['word']
+        embedding = tok['embedding']
+        if ndictionary.feature2idx.has_key(token):
+            temp_embedding_weights_object[ndictionary.feature2idx[token]] = embedding
+    for i in range(len(ndictionary.feature2idx)):
+        if temp_embedding_weights_object.has_key(i):
+            print("Embedding size", i, len(temp_embedding_weights_object[i]), embedding_size)
+            assert len(temp_embedding_weights_object[i]) == embedding_size
+            temp_embedding_weights.append(temp_embedding_weights_object[i])
+            found_embedding_weights += 1
+        else:
+            print("Not found embedding ", i)
+            tensorinit = torch.FloatTensor(1, embedding_size)
+            numpyarrayinit = torch.nn.init.xavier_normal(tensorinit).numpy()[0].tolist()
+            temp_embedding_weights.append(numpyarrayinit)
+            notfound_embedding_weights += 1
+    print("Found Embedding weights for: ", found_embedding_weights, " Not found for : ", notfound_embedding_weights)
+    temp_embedding_weights = np.array(temp_embedding_weights, dtype='f')
+    assert temp_embedding_weights.shape == (len(ndictionary), embedding_size)
+    return temp_embedding_weights
+    #self.embedding.weight.data.copy_(torch.from_numpy(temp_embedding_weights))
 
 ''' Convert predicted indices to sentences
 '''
 def Idx2sent(indexes):
     decoded_sent = '  '.join(corpus.dictionary.idx2feature[i] for i in indexes if i)
-    decoded_sent = decoded_sent.strip().strip('☕').strip('ǫ').strip() 
+    decoded_sent = decoded_sent.strip().strip('☕').strip('ǫ').strip()
     return decoded_sent
 
 ''' Convert predicted indices to sentences
@@ -360,7 +392,7 @@ def Predict(input_variable, target_variable, context, context_weights, encoder, 
 # Training Iterator
 #-----------------------------------------------------------------------------#
 
-def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0.0001):
+def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0.0001, predict=False):
 
     train_loss_total = 0  # Reset every print_every
 
@@ -496,6 +528,7 @@ if __name__== "__main__":
         train_df = pd.read_pickle(args.data + '/' + Train_Data)
         valid_df = pd.read_pickle(args.data + '/' + Valid_Data)
         eval_df = pd.read_pickle(args.data + '/' + Eval_Data)
+        embed_df = pd.read_pickle(args.data + '/' + Embed_Data)
 
     if(args.mode =='train'):
 
@@ -527,7 +560,8 @@ if __name__== "__main__":
                 print("Building the initial models")
                 ntokens = len(corpus.dictionary)
                 ntopic = args.ntopic
-                Encoder = model.EncoderRNN(args.model, ntokens, args.embed, args.nhid, args.nlayers, args.dropout)
+                iembedding_tensor = init_embedding(args.embed, corpus.dictionary, embed_df)
+                Encoder = model.EncoderRNN(args.model, ntokens, args.embed, args.nhid, args.nlayers, args.dropout, iembedding_tensor)
                 ''' Regular classifier without any attention
                 Classifier = model.AttentionClassifier(ntopic, args.nhid, args.hhid, args.cembed,  args.max_len, args.dropout)
                 '''
@@ -557,12 +591,12 @@ if __name__== "__main__":
                 except:
                     print("Could not load existing corpus Dictionary. Does the file exist?")
                     sys.exit(-1)
-
+            iembedding_tensor = init_embedding(args.embed, corpus.dictionary, embed_df)
             print("Building the initial models")
             ntokens = len(corpus.dictionary)
             ntopic = args.ntopic
 
-            Encoder = model.EncoderRNN(args.model, ntokens, args.embed, args.nhid, args.nlayers, args.dropout)
+            Encoder = model.EncoderRNN(args.model, ntokens, args.embed, args.nhid, args.nlayers, args.dropout, iembedding_tensor)
             ''' Regular classifier without any attention
             Classifier = model.AttentionClassifier(ntopic, args.nhid, args.hhid, args.cembed,  args.max_len, args.dropout)
             '''
