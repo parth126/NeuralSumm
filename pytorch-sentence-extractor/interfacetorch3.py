@@ -146,15 +146,19 @@ class TensorContextDataset(torch.utils.data.Dataset):
         target_tensor (Tensor): contains sample targets (labels).
     """
 
-    def __init__(self, data_tensor, target_tensor, context_tensor):
+    def __init__(self, data_tensor, target_tensor, context_tensor, doc_id, body_sid):
         assert data_tensor.size(0) == target_tensor.size(0)
         assert data_tensor.size(0) == context_tensor.size(0)
+        assert data_tensor.size(0) == doc_id.size
+        assert data_tensor.size(0) == body_sid.size
         self.data_tensor = data_tensor
         self.context_tensor = context_tensor
         self.target_tensor = target_tensor
+        self.doc_id_matrix = doc_id
+        self.body_sid_matrix = body_sid
 
     def __getitem__(self, index):
-        return self.data_tensor[index], self.target_tensor[index], self.context_tensor[index]
+        return self.data_tensor[index], self.target_tensor[index], self.context_tensor[index], self.doc_id_matrix[index], self.body_sid_matrix[index]
 
     def __len__(self):
         return self.data_tensor.size(0)
@@ -403,9 +407,9 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
 
     ''' Load the training and testing data '''
 
-    TrainData = TensorContextDataset(train_ip, train_op, train_context_weights)
+    TrainData = TensorContextDataset(train_ip, train_op, train_context_weights, train_doc_id, train_body_sid)
     TrainDataLoader = torch.utils.data.DataLoader(TrainData, batch_size=args.batch_size, shuffle=True)
-    ValData = TensorContextDataset(valid_ip, valid_op, valid_context_weights)
+    ValData = TensorContextDataset(valid_ip, valid_op, valid_context_weights, valid_doc_id, valid_body_sid)
     ValDataLoader = torch.utils.data.DataLoader(ValData, batch_size=args.batch_size)
 
     for epoch in range(args.startepoch, args.epoch):
@@ -468,7 +472,7 @@ def evalIters(encoder, classifier, batch_size, print_every=100, learning_rate=0.
 
     ''' Load the evaluation data '''
 
-    EvalData = TensorContextDataset(eval_ip, eval_op, eval_context_weights)
+    EvalData = TensorContextDataset(eval_ip, eval_op, eval_context_weights, eval_doc_id, eval_body_sid)
     EvalDataLoader = torch.utils.data.DataLoader(EvalData, batch_size=args.batch_size)
     run_evaluation(EvalDataLoader, encoder, classifier, -1, eval_ip, eval_op, predict)
 
@@ -478,7 +482,12 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
     Eval_NCorrect = 0
     loss = 0.0
     BatchN = 0.0
-    for input_v, target_v, context_v in valdataloader:
+    OutputS = []
+    TargetS = []
+    DocIDS = []
+    BodyIDS = []
+
+    for input_v, target_v, context_v, doc_id, body_sid in valdataloader:
         input_variable = Variable(input_v).transpose(0,1).contiguous()
         target_variable = Variable(target_v).transpose(0,1).contiguous()
         context_weights = Variable(context_v).transpose(0,1).contiguous()
@@ -490,14 +499,24 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
 
         C, P, N, L, O = Evaluate(input_variable, target_variable, context_weights, encoder, classifier)
         if (predict):
-            print("Output:", O)
-            print("Expected:", target_variable)
+            #print("Output:", O.data.numpy())
+            #print("OutputS:", OutputS)
+            #print("Expected:", target_variable)
+            #print("doc_id : ", doc_id)
+            #print("body_sid : ", body_sid)
+            OutputS.extend(O.data.numpy()[0])
+            TargetS.extend(target_variable.data.numpy()[0])
+            DocIDS.extend(doc_id)
+            BodyIDS.extend(body_sid)
+            #print("Sizes: ", len(OutputS), len(TargetS), len(DocIDS), len(BodyIDS))
 
         Eval_Correct += C
         Eval_PCorrect += P
         Eval_NCorrect += N
         loss += L
         BatchN += 1.0
+    predict_df = pd.DataFrame({ 'output': OutputS, 'target' : TargetS, 'doc_id': DocIDS, 'body_sid': BodyIDS})
+    predict_df.to_pickle('data/predict_output.df')
 
     Eval_Accuracy = Eval_Correct*1.0/current_ip.size(0)
     Correct_Accuracy = Eval_PCorrect*1.0/sum(current_op)
@@ -547,7 +566,7 @@ if __name__== "__main__":
                 print("Could not load existing corpus Dictionary. Does the file exist?")
                 sys.exit(-1)
 
-            try: 
+            try:
                 with open('./data/models/Encoder.pt', 'rb') as f1:
                     Encoder = torch.load(f1)
                 with open('./data/models/Classifier.pt', 'rb') as f2:
@@ -611,10 +630,14 @@ if __name__== "__main__":
         train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
         train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
         train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
+        train_doc_id = train_df.doc_id.as_matrix()
+        train_body_sid = train_df.body_sid.as_matrix()
 
         valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
         valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1).tolist())
         valid_context_weights = corpus.vectorize_list(valid_df, 'topics', args.ntopic, 'context')
+        valid_doc_id = valid_df.doc_id.as_matrix()
+        valid_body_sid = valid_df.body_sid.as_matrix()
 
         print("Corpus and Context Vectorized. Starting Training...")
 
@@ -653,6 +676,8 @@ if __name__== "__main__":
         eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
         eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
+        eval_doc_id = eval_df.doc_id.as_matrix()
+        eval_body_sid = eval_df.body_sid.as_matrix()
 
         print("Corpus and context Vectorized. Starting Evaluation...")
 
@@ -690,6 +715,8 @@ if __name__== "__main__":
         eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
         eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
+        eval_doc_id = eval_df.doc_id.as_matrix()
+        eval_body_sid = eval_df.body_sid.as_matrix()
 
         print("Corpus Vectorized. Starting Prediction...")
 
