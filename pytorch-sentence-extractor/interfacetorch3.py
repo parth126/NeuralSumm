@@ -650,7 +650,7 @@ if __name__== "__main__":
                 Classifier = Classifier.cuda()
 
         print("Dictionary and model built.")
-        if (train_vectorize | (len(train_ip) == 0)):
+        if (train_vectorize | (len(train_ip) == 0) | args.build_dict):
             print(" Vectorizing the training corpus now...")
             train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
             save_vectorization(Train_Data, train_ip)
@@ -659,7 +659,7 @@ if __name__== "__main__":
         train_doc_id = train_df.doc_id.as_matrix()
         train_body_sid = train_df.body_sid.as_matrix()
 
-        if (valid_vectorize | (len(valid_ip) == 0)):
+        if (valid_vectorize | (len(valid_ip) == 0) | args.build_dict):
             print("Vectorizing valid dataframe now")
             valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
             save_vectorization(Valid_Data, valid_ip)
@@ -700,9 +700,12 @@ if __name__== "__main__":
             print("Could not load existing Dictionary. Does the file exist?")
             sys.exit(-1)
 
-        print("Dictionary and model loaded. Vectorizing the corpus now...")
+        print("Dictionary and model loaded.")
+        if (eval_vectorize | (len(eval_ip) == 0) | args.build_dict):
+            print("Vectorizing eval dataframe now")
+            eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
+            save_vectorization(Eval_Data, eval_ip)
 
-        eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
         eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
         eval_doc_id = eval_df.doc_id.as_matrix()
@@ -739,9 +742,12 @@ if __name__== "__main__":
             print("Could not load existing corpus Dictionary. Does the file exist?")
             sys.exit(-1)
 
-        print("Dictionary and model loaded. Vectorizing the corpus now...")
+        print("Dictionary and model loaded.")
+        if (eval_vectorize | (len(eval_ip) == 0) | args.build_dict):
+            print("Vectorizing eval dataframe now")
+            eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
+            save_vectorization(Eval_Data, eval_ip)
 
-        eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
         eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
         eval_doc_id = eval_df.doc_id.as_matrix()
