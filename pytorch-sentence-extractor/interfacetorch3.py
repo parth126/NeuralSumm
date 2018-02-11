@@ -256,7 +256,7 @@ def init_embedding(embedding_size, ndictionary, embedding_weights_df):
             temp_embedding_weights.append(temp_embedding_weights_object[i])
             found_embedding_weights += 1
         else:
-            print("Not found embedding ", i)
+            print("Not found embedding ", i, ndictionary.idx2feature[i])
             tensorinit = torch.FloatTensor(1, embedding_size)
             numpyarrayinit = torch.nn.init.xavier_normal(tensorinit).numpy()[0].tolist()
             temp_embedding_weights.append(numpyarrayinit)
@@ -417,7 +417,7 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
         BatchN = 0.0
 
         ''' Iterate over all batches for an epoch '''
-        for input_v, target_v, context_v in TrainDataLoader:
+        for input_v, target_v, context_v, doc_id, body_sid in TrainDataLoader:
             BatchN += 1.0
             input_variable = Variable(input_v).transpose(0,1).contiguous()
             target_variable = Variable(target_v).transpose(0,1).contiguous()
