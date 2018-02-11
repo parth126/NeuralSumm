@@ -530,6 +530,25 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
         f.write(Eval_Log+'\n')
     print(Eval_Log)
 
+def load_vectorization(DataFile):
+    nparray = np.zeros(0)
+    try:
+        nparray = np.load(args.data + '/' + DataFile + '.numpyarray.npy')
+        vectorize = False
+        print("Using exisiting numpy array")
+    except:
+        vectorize = True
+        print("Couldnot load exisiting numpy!! will require vectorization")
+    return torch.from_numpy(nparray), vectorize
+
+def save_vectorization(DataFile, nparray):
+    try:
+        filename = args.data + '/' + DataFile + '.numpyarray'
+        np.save(filename, nparray)
+        print("Saved numpy array to ", filename)
+    except:
+        print("Couldnot save numpy array!!")
+
 #-----------------------------------------------------------------------------#
 # Main interface
 #-----------------------------------------------------------------------------#
@@ -547,14 +566,18 @@ if __name__== "__main__":
         train_df = pd.read_pickle(args.data + '/' + Train_Data)
         valid_df = pd.read_pickle(args.data + '/' + Valid_Data)
         eval_df = pd.read_pickle(args.data + '/' + Eval_Data)
+
         embed_df = pd.read_pickle(args.data + '/' + Embed_Data)
+
+        train_ip, train_vectorize = load_vectorization(Train_Data)
+        valid_ip, valid_vectorize = load_vectorization(Valid_Data)
+        eval_ip, eval_vectorize = load_vectorization(Eval_Data)
 
     if(args.mode =='train'):
 
         print("Preparing to Train the model")
 
         ''' Load and vectorize data '''
-
 
         if(args.load_existing):
 
@@ -565,6 +588,7 @@ if __name__== "__main__":
             except:
                 print("Could not load existing corpus Dictionary. Does the file exist?")
                 sys.exit(-1)
+
 
             try:
                 with open('./data/models/Encoder.pt', 'rb') as f1:
@@ -625,15 +649,20 @@ if __name__== "__main__":
                 Encoder = Encoder.cuda()
                 Classifier = Classifier.cuda()
 
-        print("Dictionary and model built. Vectorizing the corpus now...")
-
-        train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
+        print("Dictionary and model built.")
+        if (train_vectorize | (len(train_ip) == 0)):
+            print(" Vectorizing the training corpus now...")
+            train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
+            save_vectorization(Train_Data, train_ip)
         train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
         train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
         train_doc_id = train_df.doc_id.as_matrix()
         train_body_sid = train_df.body_sid.as_matrix()
 
-        valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
+        if (valid_vectorize | (len(valid_ip) == 0)):
+            print("Vectorizing valid dataframe now")
+            valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
+            save_vectorization(Valid_Data, valid_ip)
         valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1).tolist())
         valid_context_weights = corpus.vectorize_list(valid_df, 'topics', args.ntopic, 'context')
         valid_doc_id = valid_df.doc_id.as_matrix()
