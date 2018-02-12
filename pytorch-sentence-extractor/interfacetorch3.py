@@ -31,7 +31,7 @@ parser.add_argument('--data', type=str, default='./data',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-parser.add_argument('--nhid', type=int, default=100,
+parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
 parser.add_argument('--hhid', type=int, default=100,
                     help='number of hidden units per layer')
@@ -41,9 +41,9 @@ parser.add_argument('--lr', type=float, default=0.0001,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-parser.add_argument('--epochs', type=int, default=40,
+parser.add_argument('--epochs', type=int, default=20,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=50,
+parser.add_argument('--batch_size', type=int, default=500,
                     help='batch size')
 parser.add_argument('--max_len', type=int, default=40,
                     help='Maximum sequence length')
@@ -53,7 +53,7 @@ parser.add_argument('--seed', type=int, default=1892,
                     help='random seed')
 parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
-parser.add_argument('--epoch', type=str,  default=500,
+parser.add_argument('--epoch', type=str,  default=20,
                     help='Number of Epochs to train')
 parser.add_argument('--embed', type=float, default=100,
                     help='Character Embedding Size')
@@ -75,9 +75,9 @@ parser.add_argument('--dry_run', action='store_true',
                     help='whether this run is just to check if code is working')
 parser.add_argument('--p_threshold', type=float, default=0.5,
                     help='Threshold used while predicting based on classifier prob')
-parser.add_argument('--weight0', type=float, default=0.05,
+parser.add_argument('--weight0', type=float, default=0.5,
                     help='Weight for calculating weighted loss when target variable is 0')
-parser.add_argument('--weight1', type=float, default=0.95,
+parser.add_argument('--weight1', type=float, default=0.5,
                     help='Weight for calculating weighted loss when target variable is 1')
 
 args = parser.parse_args()
@@ -104,9 +104,9 @@ if(args.dry_run == 1):
     Eval_Data = 'acl_data_context_docwise_test_sorted.pkl'
     Embed_Data = 'initial_embeddings.df'
 else:
-    Train_Data = 'train_context_sampled.pkl'
-    Valid_Data = 'valid_context_sampled.pkl'
-    Eval_Data = 'eval_context_sampled.pkl'
+    Train_Data = 'train_context_sampled_new.pkl'
+    Valid_Data = 'valid_context_sampled_new.pkl'
+    Eval_Data = 'eval_context_sampled_new.pkl'
     Embed_Data = 'initial_embeddings.df'
 
 #-----------------------------------------------------------------------------#
@@ -504,8 +504,8 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
             #print("Expected:", target_variable)
             #print("doc_id : ", doc_id)
             #print("body_sid : ", body_sid)
-            OutputS.extend(O.data.numpy()[0])
-            TargetS.extend(target_variable.data.numpy()[0])
+            OutputS.extend(O.cpu().data.numpy()[0])
+            TargetS.extend(target_variable.cpu().data.numpy()[0])
             DocIDS.extend(doc_id)
             BodyIDS.extend(body_sid)
             #print("Sizes: ", len(OutputS), len(TargetS), len(DocIDS), len(BodyIDS))

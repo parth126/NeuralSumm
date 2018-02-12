@@ -37,9 +37,10 @@ class Featurize(object):
 
     # Add new get_feature functions here
     def get_unigram_features(self, sentence):
-        unigrams = word_tokenize(sentence.lower())
-        f = [self.stemmer.stem(u) for u in unigrams if u not in self.stoplist]
-        return(f)
+        unigrams = word_tokenize(sentence)
+        #unigrams = word_tokenize(sentence.lower())
+        #f = [self.stemmer.stem(u) for u in unigrams if u not in self.stoplist]
+        return(unigrams)
 
     def get_bigram_features(self, sentence):
         unigrams = word_tokenize(sentence.lower())
