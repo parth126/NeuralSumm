@@ -389,7 +389,7 @@ def Predict(input_variable, target_variable, context, context_weights, encoder, 
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     '''
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
-    PrintRandomAttentionVisualization(input_variable, attention_weights)
+    #PrintRandomAttentionVisualization(input_variable, attention_weights)
 
     final_output = final_output.transpose(0, 1)
     loss += criterion(final_output, target_variable)
