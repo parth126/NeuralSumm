@@ -26,38 +26,20 @@
 
 
 \newcommand\fadingtext[2][]{%
-	
-	
 	\begin{tikzfadingfrompicture}[name = fading letter]
-		
-		
 		\node[color=black, inner xsep = 0pt, outer xsep = 0pt] {#2};
-		
-		
 	\end{tikzfadingfrompicture}%
-	
-	
-	\begin{tikzpicture}[baseline = (textnode.base)]
-	
-	
-	\node[inner sep = 0pt, outer sep = 0pt, #1] (textnode) {#2}; 
-	
-	
+	\begin{tikzpicture}[baseline = (textnode.base)]	
+	\node[inner sep = 0pt, outer sep = 0pt, #1] (textnode) {#2}; 	
 	\shade[path fading = fading letter, fading text, #1,fit fading = false]
-	
-	
 	(textnode.south west) rectangle (textnode.north east);% 
-	
-	
 	\end{tikzpicture}% 
-	
-	
 }
 % Copyright
 %\setcopyright{none}
 %\setcopyright{acmcopyright}
 %\setcopyright{acmlicensed}
-\setcopyright{rightsretained}
+%\setcopyright{rightsretained}
 %\setcopyright{usgov}
 %\setcopyright{usgovmixed}
 %\setcopyright{cagov}
@@ -78,31 +60,31 @@
 %  \texttt{acmart.pdf} document}
 
 
-\author{XXX}
+\author{Parth Mehta}
 \affiliation{%
-  \institution{YYY}
-  \streetaddress{ZZZ}
+  \institution{DA-IICT}
+  \streetaddress{Gandhinagar}
 }
-\email{abc@zzz.com}
+\email{parth\_me@daiict.ac.in}
 
 
-\author{XXX}
+\author{Gaurav Arora}
 \affiliation{%
-	\institution{YYY}
-	\streetaddress{ZZZ}
+	\institution{DA-IICT}
+	\streetaddress{Gandhinagar}
 }
-\email{abc@zzz.com}
+\email{arora\_gaurav@daiict.ac.in}
 
-\author{XXX}
+\author{Prasenjit Majumder}
 \affiliation{%
-	\institution{YYY}
-	\streetaddress{ZZZ}
+	\institution{DA-IICT}
+	\streetaddress{Gandhinagar}
 }
-\email{abc@zzz.com}
+\email{p\_majumder@daiict.ac.in}
 
 
 \begin{abstract}
-In this work, we present a weakly supervised sentence extraction technique for identifying important sentences in scientific papers that are worthy of inclusion in the abstract. We propose a method for determining the focus of a given paper using topic models and use it to create document-level context. We also propose an attention based sentence encoding model that jointly learns to identify important content as well as the cue phrases that are indicative of summary worthy sentences. We use a collection of articles publicly available through ACL anthology for our experiments. Our system achieves a performance that is better, in terms of several ROUGE metrics, as compared to several state of art extractive techniques. It also generate more coherent summaries and preserves the overall structure of the document.
+In this work, we present a weakly supervised sentence extraction technique for identifying important sentences in scientific papers that are worthy of inclusion in the abstract. We propose a new attention based deep learning architecture that jointly learns to identify important content, as well as the cue phrases that are indicative of summary worthy sentences. We propose a new context embedding technique for determining the focus of a given paper using topic models and use it jointly with an LSTM based sequence encoder to learn attention weights across the sentence words. We use a collection of articles publicly available through ACL anthology for our experiments. Our system achieves a performance that is better, in terms of several ROUGE metrics, as compared to several state of art extractive techniques. It also generates more coherent summaries and preserves the overall structure of the document.
 \end{abstract}
 
 %
@@ -111,7 +93,7 @@ In this work, we present a weakly supervised sentence extraction technique for i
 % Please copy and paste the code instead of the example below.
 %
 
-\keywords{Summarization, Attention, LSTM, Topic model}
+\keywords{Summarization, Attention, LSTM, Topic model, Scientific papers}
 
 
 \maketitle
