@@ -99,9 +99,9 @@ print("Start")
 
 if(args.dry_run == 1):
     print("Here")
-    Train_Data = 'acl_data_context_docwise_test_sorted.pkl'
-    Valid_Data = 'acl_data_context_docwise_test_sorted.pkl'
-    Eval_Data = 'acl_data_context_docwise_test_sorted.pkl'
+    Train_Data = 'acl_data_context.pkl.smallest'
+    Valid_Data = 'acl_data_context.pkl.smallest'
+    Eval_Data = 'acl_data_context.pkl.smallest'
     Embed_Data = 'initial_embeddings.df'
 else:
     Train_Data = 'train_context_sampled_new.pkl'
