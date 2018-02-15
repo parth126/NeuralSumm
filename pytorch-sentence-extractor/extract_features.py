@@ -37,10 +37,10 @@ class Featurize(object):
 
     # Add new get_feature functions here
     def get_unigram_features(self, sentence):
-        #unigrams = word_tokenize(sentence)
-        unigrams = word_tokenize(sentence.lower())
-        f = [self.stemmer.stem(u) for u in unigrams if u not in self.stoplist]
-        return(f)
+        unigrams = word_tokenize(sentence)
+        #unigrams = word_tokenize(sentence.lower())
+        #f = [self.stemmer.stem(u) for u in unigrams if u not in self.stoplist]
+        return(unigrams)
 
     def get_bigram_features(self, sentence):
         unigrams = word_tokenize(sentence.lower())
@@ -60,10 +60,10 @@ class Dictionary(object):
     def __init__(self):
         ''' ☕ : Padding '''
         ''' ǫ : E.O.S. '''
-        self.feature2idx = {'☕': 0, 'ǫ': 1}
-        self.feature2count = {'☕': 1, 'ǫ': 1}
-        self.idx2feature = {0: '☕', 1: 'ǫ'}
-        self.count = 2
+        self.feature2idx = {'☕': 0, 'ǫ': 1, 'UNK': 2}
+        self.feature2count = {'☕': 1, 'ǫ': 1, 'UNK': 1}
+        self.idx2feature = {0: '☕', 1: 'ǫ', 2: 'UNK'}
+        self.count = 3
 
     def add_feature(self, feature_string):
         if feature_string not in self.feature2idx:
@@ -95,7 +95,7 @@ class Corpus(object):
             for feature in features:
                 self.dictionary.add_feature(feature)
 
-    def vectorize(self, DF, type_of_features, max_len, field, min_count=0, add_noise=0, amount_of_noise=0, max_noise_in_caption=0):
+    def vectorize(self, DF, type_of_features, max_len, field, min_count=3, add_noise=0, amount_of_noise=0, max_noise_in_caption=0):
         """ Vectorize the file content and pad the sequences to same length """
 
         nlines = len(DF)
@@ -115,6 +115,12 @@ class Corpus(object):
                    nword += 1
                    if(nword > max_len-2):
                       break
+                else:
+                   idx_vectors[nline,nword] = self.dictionary.feature2idx['UNK'] 
+                   nword += 1
+                   if(nword > max_len-2):
+                      break
+
 
             idx_vectors[nline,nword] = self.dictionary.feature2idx['ǫ']
             nword += 1
@@ -177,9 +183,5 @@ class Corpus(object):
             idx_vectors[0,nword] = self.dictionary.feature2idx['☕']
             nword += 1
         #print(idx_vectors)
-
-        return idx_vectors        
-        
-        
-                     
+        return idx_vectors
             

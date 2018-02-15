@@ -22,11 +22,11 @@ class bcolors:
     @staticmethod
     def return_color(int_nu):
         int_n = int_nu[0]
-        if int_n > 0.05:
+        if int_n > 0.022:
             return bcolors.OKGREEN
-        elif int_n < 0.01:
+        elif int_n < 0.015:
             return bcolors.FAIL
-        elif int_n > 0.03:
+        elif int_n > 0.015:
             return bcolors.OKBLUE
         else:
             return bcolors.WARNING
@@ -45,7 +45,7 @@ def PrintRandomAttentionVisualization(input_variable, attention_weights):
     for i in range(input_data.shape[0]):
         for j in range(input_data.shape[1]):
             print(bcolors.return_color(attention_weights[i, j].data.cpu().numpy()))
-            print(Idx2word(input_data[i, j]))
+            print(Idx2word(input_data[i, j]), attention_weights[i, j].data.cpu().numpy()[0])
         print("")
 
 sentenceExtractorApp = Flask(__name__)
