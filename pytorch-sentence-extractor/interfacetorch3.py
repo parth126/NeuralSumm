@@ -12,7 +12,7 @@ import itertools
 import numpy as np
 import time
 import math
-import random
+#import at
 import os
 import sys
 import pickle
@@ -33,9 +33,9 @@ parser.add_argument('--data', type=str, default='./data',
                     help='location of the data corpus')
 parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
-parser.add_argument('--nhid', type=int, default=100,
+parser.add_argument('--nhid', type=int, default=200,
                     help='number of hidden units per layer')
-parser.add_argument('--hhid', type=int, default=100,
+parser.add_argument('--hhid', type=int, default=200,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
@@ -43,9 +43,9 @@ parser.add_argument('--lr', type=float, default=0.0001,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-parser.add_argument('--epochs', type=int, default=40,
+parser.add_argument('--epochs', type=int, default=20,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=50,
+parser.add_argument('--batch_size', type=int, default=100,
                     help='batch size')
 parser.add_argument('--max_len', type=int, default=40,
                     help='Maximum sequence length')
@@ -55,7 +55,7 @@ parser.add_argument('--seed', type=int, default=1892,
                     help='random seed')
 parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
-parser.add_argument('--epoch', type=str,  default=500,
+parser.add_argument('--epoch', type=str,  default=20,
                     help='Number of Epochs to train')
 parser.add_argument('--embed', type=float, default=100,
                     help='Character Embedding Size')
@@ -77,9 +77,9 @@ parser.add_argument('--dry_run', action='store_true',
                     help='whether this run is just to check if code is working')
 parser.add_argument('--p_threshold', type=float, default=0.5,
                     help='Threshold used while predicting based on classifier prob')
-parser.add_argument('--weight0', type=float, default=0.05,
+parser.add_argument('--weight0', type=float, default=1,
                     help='Weight for calculating weighted loss when target variable is 0')
-parser.add_argument('--weight1', type=float, default=0.95,
+parser.add_argument('--weight1', type=float, default=1,
                     help='Weight for calculating weighted loss when target variable is 1')
 
 args = parser.parse_args()
@@ -101,14 +101,14 @@ print("Start")
 
 if(args.dry_run == 1):
     print("Here")
-    Train_Data = 'acl_data_context_docwise_test_sorted.pkl'
-    Valid_Data = 'acl_data_context_docwise_test_sorted.pkl'
-    Eval_Data = 'acl_data_context_docwise_test_sorted.pkl'
+    Train_Data = 'acl_data_context.pkl.smallest'
+    Valid_Data = 'acl_data_context.pkl.smallest'
+    Eval_Data = 'acl_data_context.pkl.smallest'
     Embed_Data = 'initial_embeddings.df'
 else:
-    Train_Data = 'train_context_sampled.pkl'
-    Valid_Data = 'valid_context_sampled.pkl'
-    Eval_Data = 'eval_context_sampled.pkl'
+    Train_Data = 'train_context_sampled_new.pkl'
+    Valid_Data = 'valid_context_sampled_new.pkl'
+    Eval_Data = 'eval_context_sampled_new.pkl'
     Embed_Data = 'initial_embeddings.df'
 
 writer = SummaryWriter()
@@ -199,16 +199,16 @@ def timeSince(since, percent):
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
-''' Print random results for attention visualization'''
-def PrintRandomAttentionVisualization():
-    input_data = input_variable.data.numpy()
+''' Print random results for attention visualization '''
+def PrintRandomAttentionVisualization(input_variable, attention_weights):
+    input_data = input_variable.cpu().data.numpy()
     for i in range(input_data.shape[1]):
         for j in range(input_data.shape[0]):
-            print(bcolors.return_color(attention_weights[i, j].data.numpy()), Idx2word(input_variable.data.numpy()[j, i]), end = '')
+            print(bcolors.return_color(attention_weights[i, j].cpu().data.numpy()), Idx2word(input_variable.cpu().data.numpy()[j, i]), end = '')
         print("")
 
 
-''' Print random results for visualization
+''' Print random results for visualization 
 
 def PrintRandomResults(encoder, decoder, n=30):
     for i in range(n):
@@ -389,11 +389,47 @@ def Predict(input_variable, target_variable, context, context_weights, encoder, 
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     '''
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
+    PrintRandomAttentionVisualization(input_variable, attention_weights)
 
     final_output = final_output.transpose(0, 1)
     loss += criterion(final_output, target_variable)
 
     return(final_output, loss.data[0])
+    
+    
+def PredictRestInterface(input_variable, context_weights, encoder, classifier, max_len = 40, isCuda = True):
+
+    if isCuda:
+        #print("HERE")
+        input_variable = Variable(input_variable).transpose(0,1).contiguous().cuda()
+    else:
+        input_variable = Variable(input_variable).transpose(0,1).contiguous()
+    
+    context = Variable(torch.LongTensor(range(context_weights.size(0)))) #  the context weights will decide which context embeddings are non-zero
+    if args.cuda:
+        context = context.cuda()
+    
+    ''' Initialization '''
+    loss = 0
+    encoder_hidden = encoder.initHidden(input_variable.size(1))
+    encoder_outputs = Variable(torch.zeros(args.max_len, input_variable.size(1), encoder.lstm_hidden_size))
+    encoder_outputs = encoder_outputs.cuda() if args.cuda else encoder_outputs
+
+
+    ''' Encoder Forward Pass '''
+    for i_step in range(args.max_len):
+        encoder_output, encoder_hidden = encoder(input_variable[i_step], encoder_hidden)
+        encoder_outputs[i_step] = encoder_output[0]
+    ''' Classifier forward pass '''
+
+    ''' Regular classifier without any attention
+    final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
+    '''
+    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
+    
+    #PrintRandomAttentionVisualization(input_variable, attention_weights)
+        
+    return(final_output.data[0], attention_weights)
 
 
 def variable_summaries(var, epoch, name):
@@ -537,12 +573,14 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
 
     Eval_Accuracy = Eval_Correct*1.0/current_ip.size(0)
     Correct_Accuracy = Eval_PCorrect*1.0/sum(current_op)
-    Incorrect_Accuracy = Eval_NCorrect*1.0  /(len(current_op) - sum(current_op))
+    Incorrect_Accuracy = Eval_NCorrect*1.0/(len(current_op) - sum(current_op))
     Eval_Loss = loss / BatchN
     if (epoch != -1):
         Eval_Log = ('%s: %d, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Epoch", epoch, "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
     else:
-        Eval_Log = ('%s  %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Evaluation Results:", "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
+        print(Eval_Loss, Eval_Accuracy, Correct_Accuracy, Incorrect_Accuracy, Eval_Correct, Eval_PCorrect, Eval_NCorrect)
+    
+        Eval_Log = ('%s %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Evaluation Results:", "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
     with open('./data/Evaluation.log', 'a') as f:
         f.write(Eval_Log+'\n')
     #gprint("Predictions", torch.FloatTensor(OutputS))

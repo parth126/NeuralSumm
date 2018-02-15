@@ -1,0 +1,243 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{17}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[\protect\citeauthoryear{Abu-Jbara and Radev}{Abu-Jbara and
+  Radev}{2011}]%
+        {abu2011coherent}
+\bibfield{author}{\bibinfo{person}{Amjad Abu-Jbara} {and}
+  \bibinfo{person}{Dragomir Radev}.} \bibinfo{year}{2011}\natexlab{}.
+\newblock \showarticletitle{Coherent citation-based summarization of scientific
+  papers}. In \bibinfo{booktitle}{\emph{Proceedings of the 49th Annual Meeting
+  of the Association for Computational Linguistics: Human Language
+  Technologies-Volume 1}}. Association for Computational Linguistics,
+  \bibinfo{pages}{500--509}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Cheng and Lapata}{Cheng and Lapata}{2016}]%
+        {cheng2016neural}
+\bibfield{author}{\bibinfo{person}{Jianpeng Cheng} {and}
+  \bibinfo{person}{Mirella Lapata}.} \bibinfo{year}{2016}\natexlab{}.
+\newblock \showarticletitle{Neural summarization by extracting sentences and
+  words}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:1603.07252}}
+  (\bibinfo{year}{2016}).
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Erkan and Radev}{Erkan and Radev}{2004}]%
+        {erkan2004lexrank}
+\bibfield{author}{\bibinfo{person}{G{\"u}nes Erkan} {and}
+  \bibinfo{person}{Dragomir~R Radev}.} \bibinfo{year}{2004}\natexlab{}.
+\newblock \showarticletitle{Lexrank: Graph-based lexical centrality as salience
+  in text summarization}.
+\newblock \bibinfo{journal}{\emph{Journal of Artificial Intelligence Research}}
+   \bibinfo{volume}{22} (\bibinfo{year}{2004}), \bibinfo{pages}{457--479}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Filippova, Alfonseca, Colmenares, Kaiser, and
+  Vinyals}{Filippova et~al\mbox{.}}{2015}]%
+        {filippova2015sentence}
+\bibfield{author}{\bibinfo{person}{Katja Filippova}, \bibinfo{person}{Enrique
+  Alfonseca}, \bibinfo{person}{Carlos~A Colmenares}, \bibinfo{person}{Lukasz
+  Kaiser}, {and} \bibinfo{person}{Oriol Vinyals}.}
+  \bibinfo{year}{2015}\natexlab{}.
+\newblock \showarticletitle{Sentence compression by deletion with lstms}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 2015 Conference on Empirical
+  Methods in Natural Language Processing}}. \bibinfo{pages}{360--368}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Gillick and Favre}{Gillick and Favre}{2009}]%
+        {gillick2009scalable}
+\bibfield{author}{\bibinfo{person}{Dan Gillick} {and} \bibinfo{person}{Benoit
+  Favre}.} \bibinfo{year}{2009}\natexlab{}.
+\newblock \showarticletitle{A scalable global model for summarization}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the Workshop on Integer Linear
+  Programming for Natural Langauge Processing}}. Association for Computational
+  Linguistics, \bibinfo{pages}{10--18}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Hirohata, Okazaki, Ananiadou, and
+  Ishizuka}{Hirohata et~al\mbox{.}}{2008}]%
+        {hirohata2008identifying}
+\bibfield{author}{\bibinfo{person}{Kenji Hirohata}, \bibinfo{person}{Naoaki
+  Okazaki}, \bibinfo{person}{Sophia Ananiadou}, {and} \bibinfo{person}{Mitsuru
+  Ishizuka}.} \bibinfo{year}{2008}\natexlab{}.
+\newblock \showarticletitle{Identifying sections in scientific abstracts using
+  conditional random fields}. In \bibinfo{booktitle}{\emph{Proceedings of the
+  Third International Joint Conference on Natural Language Processing:
+  Volume-I}}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Hong, Conroy, Favre, Kulesza, Lin, and
+  Nenkova}{Hong et~al\mbox{.}}{[n. d.]}]%
+        {hong2014repository}
+\bibfield{author}{\bibinfo{person}{Kai Hong}, \bibinfo{person}{John~M Conroy},
+  \bibinfo{person}{Benoit Favre}, \bibinfo{person}{Alex Kulesza},
+  \bibinfo{person}{Hui Lin}, {and} \bibinfo{person}{Ani Nenkova}.}
+  \bibinfo{year}{[n. d.]}\natexlab{}.
+\newblock \showarticletitle{A Repository of State of the Art and Competitive
+  Baseline Summaries for Generic News Summarization.}
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Kupiec, Pedersen, and Chen}{Kupiec
+  et~al\mbox{.}}{1995}]%
+        {kupiec1995trainable}
+\bibfield{author}{\bibinfo{person}{Julian Kupiec}, \bibinfo{person}{Jan
+  Pedersen}, {and} \bibinfo{person}{Francine Chen}.}
+  \bibinfo{year}{1995}\natexlab{}.
+\newblock \showarticletitle{A trainable document summarizer}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the 18th annual international ACM
+  SIGIR conference on Research and development in information retrieval}}. ACM,
+  \bibinfo{pages}{68--73}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Lin}{Lin}{2004}]%
+        {lin2004rouge}
+\bibfield{author}{\bibinfo{person}{Chin-Yew Lin}.}
+  \bibinfo{year}{2004}\natexlab{}.
+\newblock \showarticletitle{Rouge: A package for automatic evaluation of
+  summaries}.
+\newblock \bibinfo{journal}{\emph{Text Summarization Branches Out}}
+  (\bibinfo{year}{2004}).
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Lin and Hovy}{Lin and Hovy}{2000}]%
+        {lin2000automated}
+\bibfield{author}{\bibinfo{person}{Chin-Yew Lin} {and} \bibinfo{person}{Eduard
+  Hovy}.} \bibinfo{year}{2000}\natexlab{}.
+\newblock \showarticletitle{The automated acquisition of topic signatures for
+  text summarization}. In \bibinfo{booktitle}{\emph{Proceedings of the 18th
+  conference on Computational linguistics-Volume 1}}. Association for
+  Computational Linguistics, \bibinfo{pages}{495--501}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Lin and Bilmes}{Lin and Bilmes}{2012}]%
+        {lin2012learning}
+\bibfield{author}{\bibinfo{person}{Hui Lin} {and} \bibinfo{person}{Jeff
+  Bilmes}.} \bibinfo{year}{2012}\natexlab{}.
+\newblock \showarticletitle{Learning mixtures of submodular shells with
+  application to document summarization}. In
+  \bibinfo{booktitle}{\emph{Proceedings of the Twenty-Eighth Conference on
+  Uncertainty in Artificial Intelligence}}. AUAI Press,
+  \bibinfo{pages}{479--490}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Mei and Zhai}{Mei and Zhai}{2008}]%
+        {mei2008generating}
+\bibfield{author}{\bibinfo{person}{Qiaozhu Mei} {and}
+  \bibinfo{person}{ChengXiang Zhai}.} \bibinfo{year}{2008}\natexlab{}.
+\newblock \showarticletitle{Generating impact-based summaries for scientific
+  literature}.
+\newblock \bibinfo{journal}{\emph{Proceedings of ACL-08: HLT}}
+  (\bibinfo{year}{2008}), \bibinfo{pages}{816--824}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Mihalcea and Tarau}{Mihalcea and
+  Tarau}{2004}]%
+        {mihalcea2004textrank}
+\bibfield{author}{\bibinfo{person}{Rada Mihalcea} {and} \bibinfo{person}{Paul
+  Tarau}.} \bibinfo{year}{2004}\natexlab{}.
+\newblock \showarticletitle{TextRank: Bringing Order into Texts}. In
+  \bibinfo{booktitle}{\emph{Proceedings of Emperical Methods in Natural
+  Language Processing}}. \bibinfo{publisher}{Association for Computational
+  Linguistics}, \bibinfo{address}{Barcelona, Spain}, \bibinfo{pages}{404--411}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Mikolov, Chen, Corrado, and Dean}{Mikolov
+  et~al\mbox{.}}{2013}]%
+        {mikolov2013efficient}
+\bibfield{author}{\bibinfo{person}{Tomas Mikolov}, \bibinfo{person}{Kai Chen},
+  \bibinfo{person}{Greg Corrado}, {and} \bibinfo{person}{Jeffrey Dean}.}
+  \bibinfo{year}{2013}\natexlab{}.
+\newblock \showarticletitle{Efficient estimation of word representations in
+  vector space}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:1301.3781}}
+  (\bibinfo{year}{2013}).
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Rush, Chopra, and Weston}{Rush
+  et~al\mbox{.}}{2015}]%
+        {rush2015neural}
+\bibfield{author}{\bibinfo{person}{Alexander~M Rush}, \bibinfo{person}{Sumit
+  Chopra}, {and} \bibinfo{person}{Jason Weston}.}
+  \bibinfo{year}{2015}\natexlab{}.
+\newblock \showarticletitle{A neural attention model for abstractive sentence
+  summarization}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:1509.00685}}
+  (\bibinfo{year}{2015}).
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Steinberger}{Steinberger}{2004}]%
+        {steinberger2004using}
+\bibfield{author}{\bibinfo{person}{Josef Steinberger}.}
+  \bibinfo{year}{2004}\natexlab{}.
+\newblock \showarticletitle{Using latent semantic analysis in text
+  summarization and summary evaluation}. In
+  \bibinfo{booktitle}{\emph{Proceedings of ISIM’04}}.
+  \bibinfo{pages}{93--100}.
+\newblock
+
+
+\bibitem[\protect\citeauthoryear{Teufel and Moens}{Teufel and Moens}{2002}]%
+        {teufel2002summarizing}
+\bibfield{author}{\bibinfo{person}{Simone Teufel} {and} \bibinfo{person}{Marc
+  Moens}.} \bibinfo{year}{2002}\natexlab{}.
+\newblock \showarticletitle{Summarizing scientific articles: experiments with
+  relevance and rhetorical status}.
+\newblock \bibinfo{journal}{\emph{Computational linguistics}}
+  \bibinfo{volume}{28}, \bibinfo{number}{4} (\bibinfo{year}{2002}),
+  \bibinfo{pages}{409--445}.
+\newblock
+
+
+\end{thebibliography}
