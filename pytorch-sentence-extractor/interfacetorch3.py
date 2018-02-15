@@ -24,6 +24,8 @@ import matplotlib.ticker as ticker
 
 import extract_features
 import model as model
+from tensorboardX import SummaryWriter
+
 
 parser = argparse.ArgumentParser(description='LSTM based Spell Checker')
 
@@ -109,6 +111,7 @@ else:
     Eval_Data = 'eval_context_sampled.pkl'
     Embed_Data = 'initial_embeddings.df'
 
+writer = SummaryWriter()
 #-----------------------------------------------------------------------------#
 # Helper functions
 #-----------------------------------------------------------------------------#
@@ -196,14 +199,14 @@ def timeSince(since, percent):
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 
-''' Print random results for attention visualization
+''' Print random results for attention visualization'''
 def PrintRandomAttentionVisualization():
     input_data = input_variable.data.numpy()
     for i in range(input_data.shape[1]):
         for j in range(input_data.shape[0]):
             print(bcolors.return_color(attention_weights[i, j].data.numpy()), Idx2word(input_variable.data.numpy()[j, i]), end = '')
         print("")
-'''
+
 
 ''' Print random results for visualization
 
@@ -318,7 +321,8 @@ def train(input_variable, target_variable, context_weights, encoder, encoder_opt
     '''
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
     final_output = final_output.transpose(0, 1)
-
+    #variable_summaries(attention_weights.cpu().data.numpy(), epoch, "attention_weights")
+    #attention_weights.embedding.weight.cpu().data.numpy()
     weights = torch.ones(final_output.size())
 
     weights[(target_variable.cpu() == 0).data] = args.weight0
@@ -350,13 +354,13 @@ def Evaluate(input_variable, target_variable, context_weights, encoder, classifi
         context = context.cuda()
 
     output, loss = Predict(input_variable, target_variable, context, context_weights, encoder, classifier)
-    output = (output >= args.p_threshold).float()
+    output_n = (output >= args.p_threshold).float()
     Correct = 0
     PosCorrect = 0
     NegCorrect = 0
 
-    for i in range(output.size(1)):
-        out = output.data[:,i]
+    for i in range(output_n.size(1)):
+        out = output_n.data[:,i]
         Correct += torch.equal(out, target_variable.data[:,i])*1
         PosCorrect += sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1))
         #print(sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1)))
@@ -391,6 +395,16 @@ def Predict(input_variable, target_variable, context, context_weights, encoder, 
 
     return(final_output, loss.data[0])
 
+
+def variable_summaries(var, epoch, name):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    mean = torch.mean(var)
+    writer.add_scalar('data' + name + 'mean', mean, epoch)
+    stddev = torch.sqrt(torch.mean((var - mean)*(var - mean)))
+    writer.add_scalar('data' + name + 'stddev', stddev, epoch)
+    writer.add_scalar('data' + name + 'max', torch.max(var), epoch)
+    writer.add_scalar('data' + name + 'min', torch.min(var), epoch)
+    writer.add_histogram('data' + name + 'histogram', var, epoch)
 
 #-----------------------------------------------------------------------------#
 # Training Iterator
@@ -459,7 +473,10 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
         ''' Evaluate on the validation set after each epoch '''
         print("Evaluating the model")
         run_evaluation(ValDataLoader, encoder, classifier, epoch, valid_ip, valid_op)
-
+        variable_summaries(encoder.embedding.weight, epoch, "encoder_embeddings_weight")
+        variable_summaries(classifier.embedding.weight, epoch, "classifier_embeddings_weight")
+        writer.add_scalar('data/total_loss',train_loss_total, epoch)
+        writer.add_scalar('data/total_loss_average',train_loss_total/(BatchN*batch_size), epoch)
 
 def evalIters(encoder, classifier, batch_size, print_every=100, learning_rate=0.0001, predict=False):
 
@@ -498,16 +515,15 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
             context_weights = context_weights.cuda()
 
         C, P, N, L, O = Evaluate(input_variable, target_variable, context_weights, encoder, classifier)
-        if (predict):
             #print("Output:", O.data.numpy())
             #print("OutputS:", OutputS)
             #print("Expected:", target_variable)
             #print("doc_id : ", doc_id)
             #print("body_sid : ", body_sid)
-            OutputS.extend(O.data.numpy()[0])
-            TargetS.extend(target_variable.data.numpy()[0])
-            DocIDS.extend(doc_id)
-            BodyIDS.extend(body_sid)
+        OutputS.extend(O.data.numpy()[0])
+        TargetS.extend(target_variable.data.numpy()[0])
+        DocIDS.extend(doc_id)
+        BodyIDS.extend(body_sid)
             #print("Sizes: ", len(OutputS), len(TargetS), len(DocIDS), len(BodyIDS))
 
         Eval_Correct += C
@@ -515,8 +531,9 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
         Eval_NCorrect += N
         loss += L
         BatchN += 1.0
-    predict_df = pd.DataFrame({ 'output': OutputS, 'target' : TargetS, 'doc_id': DocIDS, 'body_sid': BodyIDS})
-    predict_df.to_pickle('data/predict_output.df')
+    if (predict):
+        predict_df = pd.DataFrame({ 'output': OutputS, 'target' : TargetS, 'doc_id': DocIDS, 'body_sid': BodyIDS})
+        predict_df.to_pickle('data/predict_output.df')
 
     Eval_Accuracy = Eval_Correct*1.0/current_ip.size(0)
     Correct_Accuracy = Eval_PCorrect*1.0/sum(current_op)
@@ -528,6 +545,8 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
         Eval_Log = ('%s  %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Evaluation Results:", "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
     with open('./data/Evaluation.log', 'a') as f:
         f.write(Eval_Log+'\n')
+    #gprint("Predictions", torch.FloatTensor(OutputS))
+    #writer.add_pr_curve("Evaluations", torch.FloatTensor(TargetS), torch.from_numpy(OutputS), epoch)
     print(Eval_Log)
 
 def load_vectorization(DataFile):
@@ -539,6 +558,7 @@ def load_vectorization(DataFile):
     except:
         vectorize = True
         print("Couldnot load exisiting numpy!! will require vectorization")
+	return nparray, vectorize
     return torch.from_numpy(nparray), vectorize
 
 def save_vectorization(DataFile, nparray):
@@ -648,8 +668,9 @@ if __name__== "__main__":
             if args.cuda:
                 Encoder = Encoder.cuda()
                 Classifier = Classifier.cuda()
-
         print("Dictionary and model built.")
+        print("iembedding tensor", iembedding_tensor)
+        writer.add_embedding(torch.from_numpy(iembedding_tensor))
         if (train_vectorize | (len(train_ip) == 0) | args.build_dict):
             print(" Vectorizing the training corpus now...")
             train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
@@ -672,6 +693,7 @@ if __name__== "__main__":
 
         criterion = nn.BCELoss()
         trainIters(Encoder, Classifier, args.batch_size, args.log_interval, args.lr, False)
+	writer.close()
 
     elif(args.mode == 'evaluate'):
         print("Preparing to evaluate the model")
