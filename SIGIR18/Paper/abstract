@@ -1,3 +1,0 @@
-An attention based sentence extractor for scientific articles
-
-In this work, we present a sentence extraction technique as a first step towards generating abstracts of scientific papers. We use a collection of 30,000 papers publicly available through ACL anthology. We define the focus of a given paper using topic models and use it to create document-level context. An LSTM based sentence encoder is then used alongside the context defined above to select sentences relevant to the abstract. We evaluate the sentence selection using f-measure against a psuedo-labelled list of sentences. We also compare the selected sentences to original abstracts of the paper using ROUGE. 
