@@ -33,7 +33,7 @@ parser.add_argument('--model', type=str, default='LSTM',
                     help='type of recurrent net (RNN_TANH, RNN_RELU, LSTM, GRU)')
 parser.add_argument('--nhid', type=int, default=100,
                     help='number of hidden units per layer')
-parser.add_argument('--hhid', type=int, default=1000,
+parser.add_argument('--hhid', type=int, default=100,
                     help='number of hidden units per layer')
 parser.add_argument('--nlayers', type=int, default=1,
                     help='number of layers')
@@ -43,13 +43,13 @@ parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
 parser.add_argument('--epochs', type=int, default=40,
                     help='upper epoch limit')
-parser.add_argument('--batch_size', type=int, default=100,
+parser.add_argument('--batch_size', type=int, default=50,
                     help='batch size')
 parser.add_argument('--max_len', type=int, default=40,
                     help='Maximum sequence length')
 parser.add_argument('--dropout', type=float, default=0.2,
                     help='dropout applied to layers (0 = no dropout)')
-parser.add_argument('--seed', type=int, default=1111,
+parser.add_argument('--seed', type=int, default=1113,
                     help='random seed')
 parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
@@ -71,6 +71,8 @@ parser.add_argument('--cembed', type=float, default=10,
                     help='context embedding size')
 parser.add_argument('--ntopic', type=float, default=500,
                     help='maximum number of topics per document')                    
+parser.add_argument('--dry_run', action='store_true',
+                    help='whether this run is just to check if code is working')                    
 
 args = parser.parse_args()
 
@@ -83,22 +85,47 @@ if torch.cuda.is_available():
     else:
         torch.cuda.manual_seed(args.seed)
 
-
 #-----------------------------------------------------------------------------#
 # Load and vectorize data
 #-----------------------------------------------------------------------------#
 
 print("Start")
 
-Train_Data = 'train_context.pkl'
-Valid_Data = 'valid_context.pkl'
-Eval_Data = 'eval_context.pkl'
-
-
+if(args.dry_run == 1):
+    print("Here")
+    Train_Data = 'acl_data_context.pkl.smallest'
+    Valid_Data = 'acl_data_context.pkl.smallest'
+    Eval_Data = 'acl_data_context.pkl.smallest'
+else:
+    Train_Data = 'train_context_sampled.pkl'
+    Valid_Data = 'valid_context_sampled.pkl'
+    Eval_Data = 'eval_context_sampled.pkl'
+    
 #-----------------------------------------------------------------------------#
 # Helper functions
 #-----------------------------------------------------------------------------#
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+    @staticmethod
+    def return_color(int_nu):
+        int_n = int_nu[0]
+        if int_n > 0.05:
+            return bcolors.OKGREEN
+        elif int_n < 0.01:
+            return bcolors.FAIL
+        elif int_n > 0.03:
+            return bcolors.OKBLUE
+        else:
+            return bcolors.WARNING
 
 class TensorContextDataset(torch.utils.data.Dataset):
     """Dataset wrapping data and target tensors.
@@ -111,7 +138,7 @@ class TensorContextDataset(torch.utils.data.Dataset):
         target_tensor (Tensor): contains sample targets (labels).
     """
 
-    def __init__(self, data_tensor, context_tensor, target_tensor):
+    def __init__(self, data_tensor, target_tensor, context_tensor):
         assert data_tensor.size(0) == target_tensor.size(0)
         assert data_tensor.size(0) == context_tensor.size(0)
         self.data_tensor = data_tensor
@@ -119,12 +146,10 @@ class TensorContextDataset(torch.utils.data.Dataset):
         self.target_tensor = target_tensor
 
     def __getitem__(self, index):
-        return self.data_tensor[index], self.context_tensor[index], self.target_tensor[index]
+        return self.data_tensor[index], self.target_tensor[index], self.context_tensor[index]
 
     def __len__(self):
         return self.data_tensor.size(0)
-
-
 
 """Wraps hidden states in new Variables, to detach them from their history."""
 def repackage_hidden(h):
@@ -158,6 +183,15 @@ def timeSince(since, percent):
     es = s / (percent)
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
+    
+''' Print random results for attention visualization 
+def PrintRandomAttentionVisualization():
+    input_data = input_variable.data.numpy()
+    for i in range(input_data.shape[1]):
+        for j in range(input_data.shape[0]):
+            print(bcolors.return_color(attention_weights[i, j].data.numpy()), Idx2word(input_variable.data.numpy()[j, i]), end = '')
+        print("")    
+'''    
 
 ''' Print random results for visualization
 def PrintRandomResults(encoder, decoder, n=30):
@@ -201,7 +235,7 @@ def Idx2sent(indexes):
 # Training, Evaluation and Prediction functions
 #-----------------------------------------------------------------------------#
 
-def train(input_variable, target_variable, context_variable, encoder, encoder_optimizer, classifier, classifier_optimizer, criterion):
+def train(input_variable, target_variable, context_weights, encoder, encoder_optimizer, classifier, classifier_optimizer, criterion):
 
     ''' Initialization '''
     loss = 0
@@ -210,21 +244,38 @@ def train(input_variable, target_variable, context_variable, encoder, encoder_op
     encoder_outputs = encoder_outputs.cuda() if args.cuda else encoder_outputs
     encoder_optimizer.zero_grad()
     classifier_optimizer.zero_grad()
- 
+    
     ''' Encoder Forward Pass '''
     for i_step in range(args.max_len):
         encoder_output, encoder_hidden = encoder(input_variable[i_step], encoder_hidden)
         encoder_outputs[i_step] = encoder_output[0] 
-    #print("CC2: ", context_variable)
-    #print("II2: ", encoder_output[0])
+
+    context = Variable(torch.LongTensor(range(context_weights.size(0)))) #  the context weights will decide which context embeddings are non-zero
+    if args.cuda:
+        context = context.cuda() 
+
     ''' Regular classifier without any attention
-    final_output = classifier(encoder_output[0], context_variable.transpose(0,1))
+    final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     ''' 
-    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context_variable.transpose(0,1))
-
-    #criterion.weight = 0.02*torch.cuda.FloatTensor(target_variable.size())
-    #criterion.weight[(target_variable.data == 1)] = 0.98
-
+    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
+    final_output = final_output.transpose(0, 1)
+    print("AA: ", final_output)
+    print("BB: ", target_variable)
+    
+    weights = torch.ones(final_output.size())
+    
+    weights[(target_variable.cpu() == 0).data] = 0.1
+    weights[(target_variable.cpu() == 1).data] = 0.9
+    
+    print("SS: ", criterion(final_output, target_variable))
+    criterion.reduce = False
+    print("SS2: ", criterion(final_output, target_variable))
+    criterion.reduce =True
+    if(args.cuda):
+        weights = weights.cuda()
+    criterion.weight = weights 
+    print(criterion(final_output, target_variable))
+    raw_input()   
     loss += criterion(final_output, target_variable)
     
     ''' Back propogation '''
@@ -235,22 +286,33 @@ def train(input_variable, target_variable, context_variable, encoder, encoder_op
     classifier_optimizer.step()
     return loss.data[0]
 
-def Evaluate(input_variable, target_variable, context_variable, encoder, classifier):
-    output, loss = Predict(input_variable, target_variable, context_variable, encoder, classifier)
-    output[output > 0.5] = 1.0
-    output[output <= 0.5] = 0.0
-    output = output.transpose(0,1)
+def Evaluate(input_variable, target_variable, context_weights, encoder, classifier):
+
+    context = Variable(torch.LongTensor(range(context_weights.size(0)))) #  the context weights will decide which context embeddings are non-zero
+    if args.cuda:
+        context = context.cuda() 
+
+    output, loss = Predict(input_variable, target_variable, context, context_weights, encoder, classifier)
+    output = (output >= 0.5).float()
     
     Correct = 0
+    PosCorrect = 0
+    NegCorrect = 0
+    
     for i in range(output.size(1)):
         out = output.data[:,i]
-        #print("A: ", out, target_variable.data[i,:])
         Correct += torch.equal(out, target_variable.data[:,i])*1
-        #print("C:", Correct)
-    return(Correct, loss)
+        #PosCorrect += sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1)) 
+        #print(sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 1)))
+        #NegCorrect += sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 0))
+        #print(sum((out == target_variable[:,i].data) & (target_variable[:,i].data == 0)))
+    #print("P: ", PosCorrect, sum(sum(target_variable.data == 1)))
+    #print("N: ", NegCorrect, sum(sum(target_variable.data == 0)))
+    #print("C: ", Correct, target_variable.size())   
+    return(Correct, PosCorrect, NegCorrect, loss)
 
 
-def Predict(input_variable, target_variable, context_variable, encoder, classifier):
+def Predict(input_variable, target_variable, context, context_weights, encoder, classifier):
 
     ''' Initialization '''
     loss = 0
@@ -262,15 +324,16 @@ def Predict(input_variable, target_variable, context_variable, encoder, classifi
     for i_step in range(args.max_len):
         encoder_output, encoder_hidden = encoder(input_variable[i_step], encoder_hidden)
         encoder_outputs[i_step] = encoder_output[0] 
+
     ''' Classifier forward pass '''
     
     ''' Regular classifier without any attention
-    final_output = classifier(encoder_output[0], context_variable.transpose(0,1))
+    final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     ''' 
-    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context_variable.transpose(0,1))
-    #print(attention_weights)
-    plt.matshow(attention_weights.data.cpu().numpy())
-
+    
+    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
+    final_output = final_output.transpose(0, 1)
+    
     loss += criterion(final_output, target_variable)
  
     return(final_output, loss.data[0])
@@ -290,12 +353,10 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
     criterion = nn.BCELoss()
 
     ''' Load the training and testing data '''
-
+    
     TrainData = TensorContextDataset(train_ip, train_op, train_context_weights)
-    #TrainData = torch.utils.data.TensorDataset(train_ip, train_op)
     TrainDataLoader = torch.utils.data.DataLoader(TrainData, batch_size=args.batch_size, shuffle=True)
     ValData = TensorContextDataset(valid_ip, valid_op, valid_context_weights)
-    #ValData = torch.utils.data.TensorDataset(valid_ip, valid_op)
     ValDataLoader = torch.utils.data.DataLoader(ValData, batch_size=args.batch_size)
 
     for epoch in range(args.startepoch, args.epoch):
@@ -303,26 +364,21 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
         BatchN = 0.0
 
         ''' Iterate over all batches for an epoch '''
-        #for input_v, target_v, context_v in TrainDataLoader:
+
         for input_v, target_v, context_v in TrainDataLoader:
             BatchN += 1.0
             input_variable = Variable(input_v).transpose(0,1).contiguous()
             target_variable = Variable(target_v).transpose(0,1).contiguous()
-            context_variable = Variable(context_v).transpose(0,1).contiguous()
-            #context_variable = Variable(input_v).transpose(0,1).contiguous()
+            context_weights = Variable(context_v).transpose(0,1).contiguous()
 
             if args.cuda:
                 input_variable = input_variable.cuda()
                 target_variable = target_variable.cuda()
-                context_variable = context_variable.cuda()
-                
-            #print("II: ", input_variable)
-            #print("TT: ", target_variable)
-            #print("CC: ", context_variable)
+                context_weights = context_weights.cuda()
 
             total_batches = (train_ip.size(0) - 1) / args.batch_size
 
-            loss = train(input_variable, target_variable, context_variable, encoder, encoder_optimizer, classifier, classifier_optimizer, criterion)
+            loss = train(input_variable, target_variable, context_weights, encoder, encoder_optimizer, classifier, classifier_optimizer, criterion)
             train_loss_total += loss
             if BatchN % print_every == 0:
                 Log1 = ('%s: %d, %s: %d' % ("Epoch", epoch, "Batch", int(BatchN)))
@@ -351,38 +407,41 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
         ''' Evaluate on the validation set after each epoch '''
         print("Evaluating the model")
         Eval_Correct = 0
+        Eval_PCorrect = 0
+        Eval_NCorrect = 0
         loss = 0.0
         BatchN = 0.0
 
-        #for input_v, target_v, context_v in ValDataLoader:
         for input_v, target_v, context_v in ValDataLoader:
             input_variable = Variable(input_v).transpose(0,1).contiguous()
             target_variable = Variable(target_v).transpose(0,1).contiguous()
-            context_variable = Variable(context_v).transpose(0,1).contiguous()
+            context_weights = Variable(context_v).transpose(0,1).contiguous()
             if args.cuda:
                 input_variable = input_variable.cuda()
                 target_variable = target_variable.cuda()
-                context_variable = context_variable.cuda()
+                context_weights = context_weights.cuda()
 
-            C, L = Evaluate(input_variable, target_variable, context_variable, encoder, classifier)
+            C, P, N, L = Evaluate(input_variable, target_variable, context_weights, encoder, classifier)
             Eval_Correct += C
+            Eval_PCorrect += P
+            Eval_NCorrect += N
             loss += L
             BatchN += 1.0
     
         Eval_Accuracy = Eval_Correct*1.0/valid_ip.size(0)
         Eval_Loss = loss / BatchN
-        Eval_Log = ('%s: %d, %s: %.4f, %s: %.4f' % ("Epoch", epoch, "Evaluation Accuracy", Eval_Accuracy, "Evaluation Loss", Eval_Loss))
+        Eval_Log = ('%s: %d, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Epoch", epoch, "Evaluation Accuracy", Eval_Accuracy, "Evaluation Loss", Eval_Loss, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
         with open('./data/Evaluation.log', 'a') as f:
             f.write(Eval_Log+'\n')    
         print(Eval_Log)
 
 
 #-----------------------------------------------------------------------------#
-# Main interface  	
+# Main interface          
 #-----------------------------------------------------------------------------#
 
 if __name__== "__main__":
-
+    print(torch.__version__)
     try:
         os.mkdir('./data/models')
     except OSError as e:
@@ -434,44 +493,32 @@ if __name__== "__main__":
             except:
                 print("Could not load existing corpus Dictionary. Does the file exist?")
                 sys.exit(-1)
-            '''    
-            try:
-                with open('./data/models/context_dictionary.pkl', 'rb') as input:
-                    context = pickle.load(input)
-                print("Using existing context Dictionary")
-            except:
-                print("Could not load existing context Dictionary. Does the file exist?")
-                sys.exit(-1)
-            '''    
-                
+                                        
         else:
 
-            print("Building the term Dictionary")
-            corpus = extract_features.Corpus()
-            corpus.add_to_dict(train_df, 'unigrams', 'sentence')
-            corpus.add_to_dict(valid_df, 'unigrams', 'sentence')
-            corpus.add_to_dict(eval_df, 'unigrams', 'sentence')
+            if(args.build_dict):
+                print("Building the term Dictionary")
+                corpus = extract_features.Corpus()
+                corpus.add_to_dict(train_df, 'unigrams', 'sentence')
+                corpus.add_to_dict(valid_df, 'unigrams', 'sentence')
+                corpus.add_to_dict(eval_df, 'unigrams', 'sentence')
             
-            with open('./data/models/corpus_dictionary.pkl', 'wb') as output:
-                pickle.dump(corpus, output, pickle.HIGHEST_PROTOCOL)
-
-            ''' Redundant
-            print("Building the context Dictionary")
-            context = extract_features.Corpus()
-            context.add_to_dict(train_df, 'unigrams', 'sentence')
-            context.add_to_dict(valid_df, 'unigrams', 'sentence')
-            context.add_to_dict(eval_df, 'unigrams', 'sentence')
+                with open('./data/models/corpus_dictionary.pkl', 'wb') as output:
+                    pickle.dump(corpus, output, pickle.HIGHEST_PROTOCOL)
             
-            with open('./data/models/context_dictionary.pkl', 'wb') as output:
-                pickle.dump(context, output, pickle.HIGHEST_PROTOCOL)
-            '''
+            else:
+                try:
+                    with open('./data/models/corpus_dictionary.pkl', 'rb') as input:
+                        corpus = pickle.load(input)
+                    print("Using existing corpus Dictionary")
+                except:
+                    print("Could not load existing corpus Dictionary. Does the file exist?")
+                    sys.exit(-1)
             
             print("Building the initial models")
             ntokens = len(corpus.dictionary)
             ntopic = args.ntopic
-            #ntopic = len(context.dictionary)
-            #print("N: ", ntopic)
-            #raw_input()
+
             Encoder = model.EncoderRNN(args.model, ntokens, args.embed, args.nhid, args.nlayers, args.dropout)
             ''' Regular classifier without any attention
             Classifier = model.AttentionClassifier(ntopic, args.nhid, args.hhid, args.cembed,  args.max_len, args.dropout)
@@ -485,11 +532,11 @@ if __name__== "__main__":
         print("Dictionary and model built. Vectorizing the corpus now...")
          
         train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
-        train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1))
+        train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
         train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
 
         valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
-        valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1))
+        valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1).tolist())
         valid_context_weights = corpus.vectorize_list(valid_df, 'topics', args.ntopic, 'context')
 
         print("Corpus and Context Vectorized. Starting Training...")
@@ -498,6 +545,7 @@ if __name__== "__main__":
         trainIters(Encoder, Classifier, args.batch_size, args.log_interval)
 
     elif(args.mode == 'evaluate'):
+    
         print("Preparing to evaluate the model")
 
         ''' Load and vectorize data '''
@@ -523,21 +571,11 @@ if __name__== "__main__":
         except:
             print("Could not load existing Dictionary. Does the file exist?")
             sys.exit(-1)
-            
-        '''    
-        try:
-            with open('./data/models/context_dictionary.pkl', 'rb') as input:
-                context = pickle.load(input)
-            print("Using existing context Dictionary")
-        except:
-            print("Could not load existing context Dictionary. Does the file exist?")
-            sys.exit(-1)
-        '''    
 
         print("Dictionary and model loaded. Vectorizing the corpus now...")
 
         eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
-        eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1))
+        eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
         eval_context_weights = context.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
 
         print("Corpus and context Vectorized. Starting Evaluation...")
@@ -571,27 +609,16 @@ if __name__== "__main__":
             print("Could not load existing corpus Dictionary. Does the file exist?")
             sys.exit(-1)
 
-        '''       
-        try:
-            with open('./data/models/context_dictionary.pkl', 'rb') as input:
-                context = pickle.load(input)
-            print("Using existing context Dictionary")
-        except:
-            print("Could not load existing context Dictionary. Does the file exist?")
-            sys.exit(-1)
-        '''
-
         print("Dictionary and model loaded. Vectorizing the corpus now...")
 
-        predict_ip = corpus.vectorize(args.data + '/' + Prediction_Ifile, args.max_len, 'sentence')
-        predict_op = corpus.vectorize(args.data + '/' + Prediction_Ofile, args.max_len)
-        predict_context = context.vectorize(args.data + '/' + Prediction_Ifile, args.max_len, 'topic')
+        eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
+        eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
+        eval_context_weights = context.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
         
         print("Corpus Vectorized. Starting Prediction...")
 
-        criterion = nn.NLLLoss()
-        predictIters(Encoder, Decoder, args.batch_size, args.log_interval)
+        criterion = nn.BCELoss()
+        predictIters(Encoder, Classifier, args.batch_size, args.log_interval)
         
        
 # TODO: include Predictiters and evaliters
-# TODO: modify predict condition in main

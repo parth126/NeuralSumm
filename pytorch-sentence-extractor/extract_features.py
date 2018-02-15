@@ -37,6 +37,7 @@ class Featurize(object):
 
     # Add new get_feature functions here
     def get_unigram_features(self, sentence):
+        #unigrams = word_tokenize(sentence)
         unigrams = word_tokenize(sentence.lower())
         f = [self.stemmer.stem(u) for u in unigrams if u not in self.stoplist]
         return(f)
@@ -143,5 +144,42 @@ class Corpus(object):
             nline += 1
         return(idx_weights)        
                      
+    def vectorize_single_list(self, topic_list, num_topics):
+        """ Vectorize the topics to a fixed length """    
+        
+        sentence = ast.literal_eval(topic_list)          
+        idx_weights = torch.FloatTensor(1, num_topics).zero_()
+ 
+        for feature, weight in sentence:
+            idx_weights[0, feature] = weight
                 
+        return(idx_weights)           
+        
+    def vectorize_string(self, input_string, type_of_features, max_len, min_count=0):
+        """ Vectorize the file content and pad the sequences to same length """
+
+        idx_vectors = torch.LongTensor(1, max_len)
+        #print(idx_vectors)
+        features = self.featurize.get_features(input_string, type_of_features)
+
+        nword = 0  
+        for feature in features:
+            if(self.dictionary.feature2count[feature] > min_count):
+               idx_vectors[0,nword] = self.dictionary.feature2idx[feature] 
+               nword += 1
+               if(nword > max_len-2):
+                  break
+
+        idx_vectors[0,nword] = self.dictionary.feature2idx['ǫ']
+        nword += 1
+
+        for c in range(nword, max_len):
+            idx_vectors[0,nword] = self.dictionary.feature2idx['☕']
+            nword += 1
+        #print(idx_vectors)
+
+        return idx_vectors        
+        
+        
+                     
             

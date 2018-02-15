@@ -2,11 +2,10 @@ import torch.nn as nn
 import torch
 import torch.nn.init
 from torch.autograd import Variable
-import numpy as np
 
 
 class EncoderRNN(nn.Module):
-    def __init__(self, rnn_type, ntoken, nembedding, nhid, nlayers, dropout=0.5, iembed_tensor=None):
+    def __init__(self, rnn_type, ntoken, nembedding, nhid, nlayers, dropout=0.5):
         super(EncoderRNN, self).__init__()
         self.ntoken = ntoken
         self.nlayers = nlayers
@@ -18,22 +17,18 @@ class EncoderRNN(nn.Module):
         self.embedding.weight.requires_grad=True
         self.encoder_i = getattr(nn, rnn_type)(self.embedding_size, self.lstm_hidden_size, dropout=self.dropout_p, bidirectional=False)
         self.encoder_h = getattr(nn, rnn_type)(self.lstm_hidden_size, self.lstm_hidden_size, dropout=self.dropout_p, bidirectional=False)
-        self.initial_embeddings_tensor = iembed_tensor
+
         self.dropout = nn.Dropout(self.dropout_p)
         self.init_weights()
 
     def init_weights(self):
         ''' Initialise weights of embeddings '''
-        if self.initial_embeddings_tensor.any():
-            self.embedding.weight.data.copy_(torch.from_numpy(self.initial_embeddings_tensor))
-        else:
-            torch.nn.init.xavier_normal(self.embedding.weight)
+        torch.nn.init.xavier_normal(self.embedding.weight)
         ''' Initialise weights of encoder RNN '''
         torch.nn.init.xavier_normal(self.encoder_i.weight_ih_l0)
         torch.nn.init.xavier_normal(self.encoder_i.weight_hh_l0)
         torch.nn.init.xavier_normal(self.encoder_h.weight_ih_l0)
-        torch.nn.init.xavier_normal(self.encoder_h.weight_hh_l0)
-
+        torch.nn.init.xavier_normal(self.encoder_h.weight_hh_l0)        
 
     def forward(self, input, hidden):
         embedded = self.embedding(input)
@@ -81,11 +76,11 @@ class Classifier(nn.Module):
     def forward(self, sentence, context, context_weights):
 
         embedded_context = self.embedding(context)
-
+        
         embedded_context = self.dropout(embedded_context)
-
+        
         context_embedding = torch.mm(context_weights ,embedded_context)
-
+        
         merged_input = torch.cat((sentence, context_embedding),1)
 
        	classifier_hidden = self.hidden_layer(merged_input)
@@ -114,7 +109,7 @@ class AttentionClassifier(nn.Module):
         self.dropout = nn.Dropout(self.dropout_p)
         self.embedding = nn.Embedding(self.ntopic, self.context_embedding_size)
         self.embedding.weight.requires_grad=True
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(1)
         self.init_weights()
 
     def init_weights(self):
