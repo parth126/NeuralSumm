@@ -1,0 +1,47 @@
+digraph graphname{
+		node [shape=record,size=4];
+                Sentence [label="Sentence (1xL)"];      // node T
+                Embeddings [label=< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"> <TR><TD>word embedding</TD></TR> </TABLE>>,shape=none];  // node P
+                SentenceEmbeddingsIntermediate [label="LSTM intermediate"];  // node P
+                SentenceEmbeddings [label="sentence embedding (s)"];  // node P
+                SentenceContext [label=< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"> <TR><TD PORT="sent">Sentence(s)</TD><TD PORT="context">Context(c)</TD></TR> </TABLE>>,shape=none];  // node P
+
+
+		Document [label="Document"];
+		Topics [label="Topic probabilities (p)"];
+                ContextEmbeddings [label="Context embedding (c)"];  // node P
+
+		AttentionWeight [label="Attention weights"];
+		Multiply [label="x"];
+                Multiply2 [label="x"];
+                AttentionSentenceContext [label=< <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"> <TR><TD PORT="attnsent">Attention Embedded Sentence(a) </TD><TD PORT="attncontext">Context(c)</TD></TR> </TABLE>>,shape=none];  // node P
+
+
+                Hidden [label="Hidden (h)"];
+		Output [label="Output (o)"];
+
+                Topicset [label="Topics (T)"];
+                TopicEm [label="Topic Embeddings (J)"];
+                
+                Sentence -> Embeddings[label="E", fontcolor=darkgreen]; // edge T->P
+                Embeddings -> SentenceEmbeddingsIntermediate [label="LSTM", fontcolor=darkgreen]; // edge T->P
+                SentenceEmbeddingsIntermediate -> SentenceEmbeddings[label = ""];// edge T -> P
+                SentenceEmbeddings -> SentenceContext:sent [label="", fontcolor=darkgreen]; // edge T->P
+
+
+		Document -> Topics [label="LDA"];
+		ContextEmbeddings -> SentenceContext:context [label=""]
+                Topicset -> TopicEm [label="F"]
+                TopicEm -> Multiply2 [label=""]
+		Topics -> Multiply2[label=""]
+                Multiply2 -> ContextEmbeddings [label="Weighted Combination"];
+                                
+
+		SentenceContext -> AttentionWeight [label="Attention"];
+		AttentionWeight -> Multiply [label=""];
+		SentenceEmbeddingsIntermediate -> Multiply [label=""];
+		Multiply -> AttentionSentenceContext:attnsent [label=""];
+		ContextEmbeddings -> AttentionSentenceContext:attncontext [label=""];
+		AttentionSentenceContext -> Hidden [label="Hidden layer"];
+                Hidden -> Output [label="Output layer"]
+}
