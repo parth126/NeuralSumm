@@ -254,12 +254,12 @@ def init_embedding(embedding_size, ndictionary, embedding_weights_df):
             temp_embedding_weights_object[ndictionary.feature2idx[token]] = embedding
     for i in range(len(ndictionary.feature2idx)):
         if temp_embedding_weights_object.has_key(i):
-            print("Embedding size", i, len(temp_embedding_weights_object[i]), embedding_size)
+            #print("Embedding size", i, len(temp_embedding_weights_object[i]), embedding_size)
             assert len(temp_embedding_weights_object[i]) == embedding_size
             temp_embedding_weights.append(temp_embedding_weights_object[i])
             found_embedding_weights += 1
         else:
-            print("Not found embedding ", i, ndictionary.idx2feature[i])
+            #print("Not found embedding ", i, ndictionary.idx2feature[i])
             tensorinit = torch.FloatTensor(1, embedding_size)
             numpyarrayinit = torch.nn.init.xavier_normal(tensorinit).numpy()[0].tolist()
             temp_embedding_weights.append(numpyarrayinit)
@@ -556,8 +556,8 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
             #print("Expected:", target_variable)
             #print("doc_id : ", doc_id)
             #print("body_sid : ", body_sid)
-        OutputS.extend(O.data.numpy()[0])
-        TargetS.extend(target_variable.data.numpy()[0])
+        OutputS.extend(O.cpu().data.numpy()[0])
+        TargetS.extend(target_variable.cpu().data.numpy()[0])
         DocIDS.extend(doc_id)
         BodyIDS.extend(body_sid)
             #print("Sizes: ", len(OutputS), len(TargetS), len(DocIDS), len(BodyIDS))
