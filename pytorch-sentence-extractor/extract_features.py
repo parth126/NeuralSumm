@@ -32,12 +32,13 @@ class Featurize(object):
             features = self.get_bigram_features(sentence)
             return(features)
         if(feature_type == 'topics'):
-            features = self.get_topic_features(sentence)   
-        else: 
+            features = self.get_topic_features(sentence)
+        else:
             raise("Feature Not defined")
 
     # Add new get_feature functions here
     def get_unigram_features(self, sentence):
+        sentence = ''.join([i if ord(i) < 128 else ' ' for i in sentence])
         unigrams = word_tokenize(sentence)
         #unigrams = word_tokenize(sentence.lower())
         #f = [self.stemmer.stem(u) for u in unigrams if u not in self.stoplist]
