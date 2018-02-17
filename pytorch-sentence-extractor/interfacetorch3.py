@@ -43,8 +43,6 @@ parser.add_argument('--lr', type=float, default=0.0001,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=0.25,
                     help='gradient clipping')
-parser.add_argument('--epochs', type=int, default=20,
-                    help='upper epoch limit')
 parser.add_argument('--batch_size', type=int, default=100,
                     help='batch size')
 parser.add_argument('--max_len', type=int, default=40,
@@ -707,16 +705,28 @@ if __name__== "__main__":
                 Encoder = Encoder.cuda()
                 Classifier = Classifier.cuda()
         print("Dictionary and model built.")
-        print("iembedding tensor", iembedding_tensor)
+        st = time.time()
+        #print("iembedding tensor", iembedding_tensor)
         writer.add_embedding(torch.from_numpy(iembedding_tensor))
+        print(st - time.time())
+        st = time.time()
         if (train_vectorize | (len(train_ip) == 0) | args.build_dict):
             print(" Vectorizing the training corpus now...")
             train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
             save_vectorization(Train_Data, train_ip)
+        st = time.time()    
         train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
+        print(st - time.time())
+        st = time.time()
         train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
+        print(st - time.time())
+        st = time.time()
         train_doc_id = train_df.doc_id.as_matrix()
+        print(st - time.time())
+        st = time.time()
         train_body_sid = train_df.body_sid.as_matrix()
+        print(st - time.time())
+        st = time.time()
 
         if (valid_vectorize | (len(valid_ip) == 0) | args.build_dict):
             print("Vectorizing valid dataframe now")

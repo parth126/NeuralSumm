@@ -13,6 +13,7 @@ from nltk.stem.snowball import EnglishStemmer
 from nltk.tokenize import word_tokenize
 from nltk import ngrams
 from numpy.random import choice as random_choice, randint as random_randint, shuffle as random_shuffle, rand
+import time
 
 class Featurize(object):
     def __init__(self):

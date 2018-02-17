@@ -114,7 +114,7 @@ class AttentionClassifier(nn.Module):
         self.dropout = nn.Dropout(self.dropout_p)
         self.embedding = nn.Embedding(self.ntopic, self.context_embedding_size)
         self.embedding.weight.requires_grad=True
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(1)
         self.init_weights()
 
     def init_weights(self):
