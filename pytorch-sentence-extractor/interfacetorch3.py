@@ -55,7 +55,7 @@ parser.add_argument('--seed', type=int, default=1892,
                     help='random seed')
 parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
-parser.add_argument('--epoch', type=str,  default=20,
+parser.add_argument('--epoch', type=int,  default=20,
                     help='Number of Epochs to train')
 parser.add_argument('--embed', type=float, default=100,
                     help='Character Embedding Size')
@@ -101,14 +101,14 @@ print("Start")
 
 if(args.dry_run == 1):
     print("Here")
-    Train_Data = 'acl_data_context.pkl.smallest'
-    Valid_Data = 'acl_data_context.pkl.smallest'
-    Eval_Data = 'acl_data_context.pkl.smallest'
+    Train_Data = 'train_data.pkl.small'
+    Valid_Data = 'valid_data.pkl.small'
+    Eval_Data = 'eval_data.pkl.small'
     Embed_Data = 'initial_embeddings.df'
 else:
-    Train_Data = 'train_context_sampled_new.pkl'
-    Valid_Data = 'valid_context_sampled_new.pkl'
-    Eval_Data = 'eval_context_sampled_new.pkl'
+    Train_Data = 'train_docwise.pkl'
+    Valid_Data = 'valid_docwise.pkl'
+    Eval_Data = 'eval_docwise.pkl'
     Embed_Data = 'initial_embeddings.df'
 
 writer = SummaryWriter()
