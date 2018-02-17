@@ -55,7 +55,7 @@ parser.add_argument('--seed', type=int, default=1892,
                     help='random seed')
 parser.add_argument('--cuda', action='store_false',
                     help='use CUDA')
-parser.add_argument('--epoch', type=str,  default=20,
+parser.add_argument('--epoch', type=int,  default=20,
                     help='Number of Epochs to train')
 parser.add_argument('--embed', type=float, default=100,
                     help='Character Embedding Size')
@@ -101,14 +101,14 @@ print("Start")
 
 if(args.dry_run == 1):
     print("Here")
-    Train_Data = 'acl_data_context.pkl.smallest'
-    Valid_Data = 'acl_data_context.pkl.smallest'
-    Eval_Data = 'acl_data_context.pkl.smallest'
+    Train_Data = 'train_data.pkl.small'
+    Valid_Data = 'valid_data.pkl.small'
+    Eval_Data = 'eval_data.pkl.small'
     Embed_Data = 'initial_embeddings.df'
 else:
-    Train_Data = 'train_context_sampled_new.pkl'
-    Valid_Data = 'valid_context_sampled_new.pkl'
-    Eval_Data = 'eval_context_sampled_new.pkl'
+    Train_Data = 'train_docwise.pkl'
+    Valid_Data = 'valid_docwise.pkl'
+    Eval_Data = 'eval_docwise.pkl'
     Embed_Data = 'initial_embeddings.df'
 
 writer = SummaryWriter()
@@ -254,12 +254,12 @@ def init_embedding(embedding_size, ndictionary, embedding_weights_df):
             temp_embedding_weights_object[ndictionary.feature2idx[token]] = embedding
     for i in range(len(ndictionary.feature2idx)):
         if temp_embedding_weights_object.has_key(i):
-            print("Embedding size", i, len(temp_embedding_weights_object[i]), embedding_size)
+            #print("Embedding size", i, len(temp_embedding_weights_object[i]), embedding_size)
             assert len(temp_embedding_weights_object[i]) == embedding_size
             temp_embedding_weights.append(temp_embedding_weights_object[i])
             found_embedding_weights += 1
         else:
-            print("Not found embedding ", i, ndictionary.idx2feature[i])
+            #print("Not found embedding ", i, ndictionary.idx2feature[i])
             tensorinit = torch.FloatTensor(1, embedding_size)
             numpyarrayinit = torch.nn.init.xavier_normal(tensorinit).numpy()[0].tolist()
             temp_embedding_weights.append(numpyarrayinit)
@@ -556,8 +556,8 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
             #print("Expected:", target_variable)
             #print("doc_id : ", doc_id)
             #print("body_sid : ", body_sid)
-        OutputS.extend(O.data.numpy()[0])
-        TargetS.extend(target_variable.data.numpy()[0])
+        OutputS.extend(O.cpu().data.numpy()[0])
+        TargetS.extend(target_variable.cpu().data.numpy()[0])
         DocIDS.extend(doc_id)
         BodyIDS.extend(body_sid)
             #print("Sizes: ", len(OutputS), len(TargetS), len(DocIDS), len(BodyIDS))
