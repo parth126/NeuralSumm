@@ -707,8 +707,7 @@ if __name__== "__main__":
                 Encoder = Encoder.cuda()
                 Classifier = Classifier.cuda()
         print("Dictionary and model built.")
-        print("iembedding tensor", iembedding_tensor)
-        writer.add_embedding(torch.from_numpy(iembedding_tensor))
+        writer.add_embedding(torch.from_numpy(iembedding_tensor), metadata=corpus.dictionary.feature2idx.keys())
         if (train_vectorize | (len(train_ip) == 0) | args.build_dict):
             print(" Vectorizing the training corpus now...")
             train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
