@@ -124,17 +124,20 @@ class AttentionClassifier(nn.Module):
         torch.nn.init.xavier_normal(self.hidden_layer.weight)
         torch.nn.init.xavier_normal(self.output_layer.weight)
 
-    def forward(self, sentence_embedding, encoder_outputs, context, context_weights):
+    def forward(self, sentence_embedding, encoder_outputs, context, context_weights, mask):
 
-        embedded_context = self.embedding(context) 
+        embedded_context = self.embedding(context)
         embedded_context = self.dropout(embedded_context)
         context_embedding = torch.mm(context_weights ,embedded_context)
-        
+
         merged_input = torch.cat((sentence_embedding, context_embedding),1)
-        
-        ''' Attention Layer ''' 
+
+        ''' Attention Layer '''
         ''' Assign weights to each input timestamp, based on contet embedding and sentence embedding '''
-        Attn = self.attn(merged_input)  
+        Attn = self.attn(merged_input)
+        if mask is not None:
+            newmask = mask.transpose(1, 0)
+            Attn.data.masked_fill_(newmask, -float('inf'))
         attn_weights = self.softmax(Attn)
         attn_applied = torch.bmm(attn_weights.unsqueeze(0).transpose(0,1), encoder_outputs.transpose(0,1))
         attn_applied = attn_applied.transpose(0,1)
@@ -145,6 +148,5 @@ class AttentionClassifier(nn.Module):
 
         classifier_output = self.output_layer(classifier_hidden)
         classifier_output = self.sigmoid_activation(classifier_output)
-        
-        return classifier_output, attn_weights       
 
+        return classifier_output, attn_weights

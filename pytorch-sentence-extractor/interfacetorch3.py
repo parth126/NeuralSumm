@@ -304,7 +304,11 @@ def train(input_variable, target_variable, context_weights, encoder, encoder_opt
     encoder_outputs = encoder_outputs.cuda() if args.cuda else encoder_outputs
     encoder_optimizer.zero_grad()
     classifier_optimizer.zero_grad()
-
+    mask = input_variable.clone()
+    mask = mask.cpu().data.numpy()
+    mask[mask <= 1] = 1
+    mask[mask > 1] = 0
+    mask1 = torch.ByteTensor(mask)
     ''' Encoder Forward Pass '''
     for i_step in range(args.max_len):
         encoder_output, encoder_hidden = encoder(input_variable[i_step], encoder_hidden)
@@ -317,7 +321,7 @@ def train(input_variable, target_variable, context_weights, encoder, encoder_opt
     ''' Regular classifier without any attention
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     '''
-    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
+    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1), mask1)
     final_output = final_output.transpose(0, 1)
     #variable_summaries(attention_weights.cpu().data.numpy(), epoch, "attention_weights")
     #attention_weights.embedding.weight.cpu().data.numpy()
@@ -376,7 +380,11 @@ def Predict(input_variable, target_variable, context, context_weights, encoder, 
     encoder_hidden = encoder.initHidden(input_variable.size(1))
     encoder_outputs = Variable(torch.zeros(args.max_len, input_variable.size(1), encoder.lstm_hidden_size))
     encoder_outputs = encoder_outputs.cuda() if args.cuda else encoder_outputs
-
+    mask = input_variable.clone()
+    mask = mask.cpu().data.numpy()
+    mask[mask <= 1] = 1
+    mask[mask > 1] = 0
+    mask1 = torch.ByteTensor(mask)
     ''' Encoder Forward Pass '''
     for i_step in range(args.max_len):
         encoder_output, encoder_hidden = encoder(input_variable[i_step], encoder_hidden)
@@ -386,15 +394,15 @@ def Predict(input_variable, target_variable, context, context_weights, encoder, 
     ''' Regular classifier without any attention
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     '''
-    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
+    final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1), mask1)
     #PrintRandomAttentionVisualization(input_variable, attention_weights)
 
     final_output = final_output.transpose(0, 1)
     loss += criterion(final_output, target_variable)
 
     return(final_output, loss.data[0])
-    
-    
+
+
 def PredictRestInterface(input_variable, context_weights, encoder, classifier, max_len = 40, isCuda = True):
 
     if isCuda:
