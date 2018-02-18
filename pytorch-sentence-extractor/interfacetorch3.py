@@ -574,31 +574,35 @@ if __name__== "__main__":
         train_df = pd.read_pickle(args.data + '/' + Train_Data)
         valid_df = pd.read_pickle(args.data + '/' + Valid_Data)
         eval_df = pd.read_pickle(args.data + '/' + Eval_Data)
-
         embed_df = pd.read_pickle(args.data + '/' + Embed_Data)
 
     if(args.mode =='train'):
 
         print("Preparing to Train the model")
-
         ''' Load and vectorize data '''
-
         if(args.load_existing):
+            print("Loading Existing !!! Loading Dictionary")
             corpus = load_dictionary(args)
+            print("Loading Existing !!! Loading Models")
             Encoder, Classifier = load_models(args, True)
             if Encoder is None or Classifier is None:
+                print("Loading Existing !!! Models not loaded building from scratch")
                 Encoder, Classifier = build_model_from_scratch(args, corpus, embed_df)
         else:
             if(args.build_dict):
+                print("Build Dictionary Given! Building dictionary now!")
                 corpus = build_dictionary_from_scratch(args, train_df, valid_df, eval_df)
             else:
+                print("Building dictionary now!")
                 corpus = load_dictionary(args)
-                Encoder, Classifier = build_model_from_scratch(args, corpus, embed_df)
+            print("Building models from scratch now!")
+            Encoder, Classifier = build_model_from_scratch(args, corpus, embed_df)
         print("Dictionary and model built.")
         #print("iembedding tensor", iembedding_tensor)
         if args.tensor_board:
             writer.add_embedding(torch.from_numpy(iembedding_tensor), metadata=corpus.dictionary.feature2idx.keys())
 
+        print("Training! Handling vectorization")
         train_ip, train_op, train_context_weights, train_doc_id, train_body_sid = handle_vectorization(args, train_df, Train_Data, corpus)
         valid_ip, valid_op, valid_context_weights, valid_doc_id, valid_body_sid = handle_vectorization(args, valid_df, Valid_Data, corpus)
         print("Corpus and Context Vectorized. Starting Training...")
@@ -612,14 +616,13 @@ if __name__== "__main__":
         print("Preparing to evaluate the model")
 
         ''' Load and vectorize data '''
-
-        print("Start")
+        print("Predict Start!!! Loading Models")
         Encoder, Classifier = load_models(args)
+        print("Predict !!! Loading Dictionary")
         corpus = load_dictionary(args)
-        print("Dictionary and model loaded.")
+        print("Dictionary and model loaded. Handling vectiorization")
         eval_ip, eval_op, eval_context_weights, eval_doc_id, eval_body_sid = handle_vectorization(args, eval_df, Eval_Data, corpus)
         print("Corpus and context Vectorized. Starting Evaluation...")
-
         criterion = nn.BCELoss()
         evalIters(Encoder, Classifier, args.batch_size, args.log_interval, args.lr, False)
 
@@ -627,11 +630,11 @@ if __name__== "__main__":
         print("Preparing to predict")
 
         ''' Load and vectorize data '''
-
-        print("Start")
+        print("Evaluate Start!!! Loading Models")
         Encoder, Classifier = load_models(args)
+        print("Evaluate !!! Loading Dictionary")
         corpus = load_dictionary(args)
-        print("Dictionary and model loaded.")
+        print("Dictionary and model loaded. Handling Vectorization")
         eval_ip, eval_op, eval_context_weights, eval_doc_id, eval_body_sid = handle_vectorization(args, eval_df, Eval_Data, corpus)
         print("Corpus Vectorized. Starting Prediction...")
 
