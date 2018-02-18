@@ -196,7 +196,7 @@ def PrintRandomAttentionVisualization(input_variable, attention_weights):
     input_data = input_variable.cpu().data.numpy()
     for i in range(input_data.shape[1]):
         for j in range(input_data.shape[0]):
-            print(bcolors.return_color(attention_weights[i, j].cpu().data.numpy()), Idx2word(input_variable.cpu().data.numpy()[j, i]), end = '')
+            print(bcolors.return_color(attention_weights[i, j].cpu().data.numpy()), Idx2word(input_variable.cpu().data.numpy()[j, i]), bcolors.ENDC, end = '')
         print("")
 
 
