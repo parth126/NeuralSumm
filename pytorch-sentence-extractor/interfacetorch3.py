@@ -79,6 +79,8 @@ parser.add_argument('--weight0', type=float, default=1,
                     help='Weight for calculating weighted loss when target variable is 0')
 parser.add_argument('--weight1', type=float, default=1,
                     help='Weight for calculating weighted loss when target variable is 1')
+parser.add_argument('--min_count', type=int, default=5,
+                    help='Minimum frequency above which words will be retained')
 
 args = parser.parse_args()
 
@@ -264,7 +266,8 @@ def init_embedding(embedding_size, ndictionary, embedding_weights_df):
             notfound_embedding_weights += 1
     print("Found Embedding weights for: ", found_embedding_weights, " Not found for : ", notfound_embedding_weights)
     temp_embedding_weights = np.array(temp_embedding_weights, dtype='f')
-    assert temp_embedding_weights.shape == (len(ndictionary), embedding_size)
+    print(temp_embedding_weights.shape)
+    assert temp_embedding_weights.shape == (ndictionary.__len__(), embedding_size)
     return temp_embedding_weights
     #self.embedding.weight.data.copy_(torch.from_numpy(temp_embedding_weights))
 
@@ -506,11 +509,17 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
 
         ''' Evaluate on the validation set after each epoch '''
         print("Evaluating the model")
+        print("Here")
         run_evaluation(ValDataLoader, encoder, classifier, epoch, valid_ip, valid_op)
+        print("Here2")
         variable_summaries(encoder.embedding.weight, epoch, "encoder_embeddings_weight")
+        print("Here3")
         variable_summaries(classifier.embedding.weight, epoch, "classifier_embeddings_weight")
+        print("Here4")
         writer.add_scalar('data/total_loss',train_loss_total, epoch)
+        print("Here5")
         writer.add_scalar('data/total_loss_average',train_loss_total/(BatchN*batch_size), epoch)
+        print("Here6")
 
 def evalIters(encoder, classifier, batch_size, print_every=100, learning_rate=0.0001, predict=False):
 
@@ -593,8 +602,8 @@ def load_vectorization(DataFile):
         print("Using exisiting numpy array")
     except:
         vectorize = True
-        print("Couldnot load exisiting numpy!! will require vectorization")
-	return nparray, vectorize
+        print("Couldnot load exisiting numpy for " + DataFile +". Will require vectorization")
+        return nparray, vectorize    
     return torch.from_numpy(nparray), vectorize
 
 def save_vectorization(DataFile, nparray):
@@ -678,7 +687,8 @@ if __name__== "__main__":
                 corpus.add_to_dict(train_df, 'unigrams', 'sentence')
                 corpus.add_to_dict(valid_df, 'unigrams', 'sentence')
                 corpus.add_to_dict(eval_df, 'unigrams', 'sentence')
-
+                corpus.clean_dict(args.min_count)
+                
                 with open('./data/models/corpus_dictionary.pkl', 'wb') as output:
                     pickle.dump(corpus, output, pickle.HIGHEST_PROTOCOL)
 

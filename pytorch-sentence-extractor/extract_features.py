@@ -62,21 +62,29 @@ class Dictionary(object):
     def __init__(self):
         ''' ☕ : Padding '''
         ''' ǫ : E.O.S. '''
+        ''' UNK : Unknown '''
+        
+        self.feature2idx_original = {'☕': 0, 'ǫ': 1, 'UNK': 2}
+        self.feature2count_original = {'☕': 1, 'ǫ': 1, 'UNK': 1}
+        self.idx2feature_original = {0: '☕', 1: 'ǫ', 2: 'UNK'}
+        self.count_original = 3
+        
         self.feature2idx = {'☕': 0, 'ǫ': 1, 'UNK': 2}
         self.feature2count = {'☕': 1, 'ǫ': 1, 'UNK': 1}
         self.idx2feature = {0: '☕', 1: 'ǫ', 2: 'UNK'}
         self.count = 3
 
     def add_feature(self, feature_string):
-        if feature_string not in self.feature2idx:
-            self.idx2feature[self.count] = feature_string
-            self.feature2idx[feature_string] = self.count
-            self.feature2count[feature_string] = 1
-            self.count += 1
+        if feature_string not in self.feature2idx_original:
+            self.idx2feature_original[self.count_original] = feature_string
+            self.feature2idx_original[feature_string] = self.count_original
+            self.feature2count_original[feature_string] = 1
+            self.count_original += 1
         else:
-            self.feature2count[feature_string] += 1
+            self.feature2count_original[feature_string] += 1
 
     def __len__(self):
+        print(len(self.idx2feature))
         return len(self.idx2feature)
 
 
@@ -97,7 +105,15 @@ class Corpus(object):
             for feature in features:
                 self.dictionary.add_feature(feature)
 
-    def vectorize(self, DF, type_of_features, max_len, field, min_count=3, add_noise=0, amount_of_noise=0, max_noise_in_caption=0):
+    def clean_dict(self, min_count):
+        for key in self.dictionary.feature2count_original.keys():
+            if((key not in ['☕', 'ǫ', 'UNK']) and (self.dictionary.feature2count_original[key] > min_count)):
+                self.dictionary.feature2count[key] = self.dictionary.feature2count_original[key]
+                self.dictionary.feature2idx[key] = self.dictionary.count
+                self.dictionary.idx2feature[self.dictionary.count] = key 
+                self.dictionary.count += 1
+
+    def vectorize(self, DF, type_of_features, max_len, field, min_count=3):
         """ Vectorize the file content and pad the sequences to same length """
 
         nlines = len(DF)
@@ -112,8 +128,8 @@ class Corpus(object):
 
             nword = 0  
             for feature in features:
-                if(self.dictionary.feature2count[feature] > min_count):
-                   idx_vectors[nline,nword] = self.dictionary.feature2idx[feature] 
+                if(self.dictionary.feature2count.get(feature, 0) > min_count):
+                   idx_vectors[nline,nword] = self.dictionary.feature2idx.get(feature, 2) 
                    nword += 1
                    if(nword > max_len-2):
                       break
@@ -163,7 +179,7 @@ class Corpus(object):
                 
         return(idx_weights)           
         
-    def vectorize_string(self, input_string, type_of_features, max_len, min_count=0):
+    def vectorize_string(self, input_string, type_of_features, max_len, min_count=1):
         """ Vectorize the file content and pad the sequences to same length """
 
         idx_vectors = torch.LongTensor(1, max_len)
@@ -172,11 +188,17 @@ class Corpus(object):
 
         nword = 0  
         for feature in features:
-            if(self.dictionary.feature2count[feature] > min_count):
-               idx_vectors[0,nword] = self.dictionary.feature2idx[feature] 
+            if(self.dictionary.feature2count.get(feature, 0) > min_count):
+               idx_vectors[0,nword] = self.dictionary.feature2idx.get(feature, 2)
                nword += 1
                if(nword > max_len-2):
                   break
+            else:
+                idx_vectors[nline,nword] = self.dictionary.feature2idx['UNK'] 
+                nword += 1
+                if(nword > max_len-2):
+                    break      
+                  
 
         idx_vectors[0,nword] = self.dictionary.feature2idx['ǫ']
         nword += 1
