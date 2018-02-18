@@ -86,6 +86,8 @@ parser.add_argument('--legal', action="store_true",
                     help='Run System on Legal data')
 parser.add_argument('--debug', action="store_true",
                     help='Print Debug Logs')
+parser.add_argument('--min_count', type=int, default=5,
+                    help='Minimum frequency above which words will be retained')
 
 args = parser.parse_args()
 
@@ -256,7 +258,8 @@ def init_embedding(embedding_size, ndictionary, embedding_weights_df):
             notfound_embedding_weights += 1
     print("Found Embedding weights for: ", found_embedding_weights, " Not found for : ", notfound_embedding_weights)
     temp_embedding_weights = np.array(temp_embedding_weights, dtype='f')
-    assert temp_embedding_weights.shape == (len(ndictionary), embedding_size)
+    print(temp_embedding_weights.shape)
+    assert temp_embedding_weights.shape == (ndictionary.__len__(), embedding_size)
     return temp_embedding_weights
     #self.embedding.weight.data.copy_(torch.from_numpy(temp_embedding_weights))
 
@@ -507,6 +510,7 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
 
         ''' Evaluate on the validation set after each epoch '''
         print("Evaluating the model")
+        print("Here")
         run_evaluation(ValDataLoader, encoder, classifier, epoch, valid_ip, valid_op)
         if args.tensor_board:
             variable_summaries(encoder.embedding.weight, epoch, "encoder_embeddings_weight")
@@ -595,8 +599,8 @@ def load_vectorization(DataFile):
         print("Using exisiting numpy array")
     except:
         vectorize = True
-        print("Couldnot load exisiting numpy!! will require vectorization")
-	return nparray, vectorize
+        print("Couldnot load exisiting numpy for " + DataFile +". Will require vectorization")
+        return nparray, vectorize    
     return torch.from_numpy(nparray), vectorize
 
 def save_vectorization(DataFile, nparray):
@@ -681,6 +685,7 @@ if __name__== "__main__":
                 corpus.add_to_dict(valid_df, 'unigrams', 'sentence')
                 corpus.add_to_dict(eval_df, 'unigrams', 'sentence')
 
+                corpus.clean_dict(args.min_count)
                 with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'wb') as output:
                     pickle.dump(corpus, output, pickle.HIGHEST_PROTOCOL)
 
