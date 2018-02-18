@@ -79,6 +79,10 @@ parser.add_argument('--weight0', type=float, default=1,
                     help='Weight for calculating weighted loss when target variable is 0')
 parser.add_argument('--weight1', type=float, default=1,
                     help='Weight for calculating weighted loss when target variable is 1')
+parser.add_argument('--tensor_board', type=bool, default=False,
+                    help='Enables writing summary for TensorBoard')
+parser.add_argument('--legal', type=bool, default=False,
+                    help='Run System on Legal data')
 
 args = parser.parse_args()
 
@@ -98,18 +102,24 @@ if torch.cuda.is_available():
 print("Start")
 
 if(args.dry_run == 1):
-    print("Here")
+    print("Dry Run Here")
     Train_Data = 'train_data.pkl.small'
     Valid_Data = 'valid_data.pkl.small'
     Eval_Data = 'eval_data.pkl.small'
     Embed_Data = 'initial_embeddings.df'
+elif (args.legal):
+    print("Training with legal Data")
+    Train_Data = 'train_data.pkl'
+    Valid_Data = 'valid_data.pkl'
+    Eval_Data = 'eval_data.pkl'
+    Embed_Data = 'initial_embeddings_legal.df'
 else:
     Train_Data = 'train_docwise.pkl'
     Valid_Data = 'valid_docwise.pkl'
     Eval_Data = 'eval_docwise.pkl'
     Embed_Data = 'initial_embeddings.df'
-
-writer = SummaryWriter()
+if args.tensor_board:
+    writer = SummaryWriter()
 #-----------------------------------------------------------------------------#
 # Helper functions
 #-----------------------------------------------------------------------------#
@@ -206,7 +216,7 @@ def PrintRandomAttentionVisualization(input_variable, attention_weights):
         print("")
 
 
-''' Print random results for visualization 
+''' Print random results for visualization
 
 def PrintRandomResults(encoder, decoder, n=30):
     for i in range(n):
@@ -410,11 +420,11 @@ def PredictRestInterface(input_variable, context_weights, encoder, classifier, m
         input_variable = Variable(input_variable).transpose(0,1).contiguous().cuda()
     else:
         input_variable = Variable(input_variable).transpose(0,1).contiguous()
-    
+
     context = Variable(torch.LongTensor(range(context_weights.size(0)))) #  the context weights will decide which context embeddings are non-zero
     if args.cuda:
         context = context.cuda()
-    
+
     ''' Initialization '''
     loss = 0
     encoder_hidden = encoder.initHidden(input_variable.size(1))
@@ -432,9 +442,9 @@ def PredictRestInterface(input_variable, context_weights, encoder, classifier, m
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     '''
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
-    
+
     #PrintRandomAttentionVisualization(input_variable, attention_weights)
-        
+
     return(final_output.data[0], attention_weights)
 
 
@@ -515,10 +525,11 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
         ''' Evaluate on the validation set after each epoch '''
         print("Evaluating the model")
         run_evaluation(ValDataLoader, encoder, classifier, epoch, valid_ip, valid_op)
-        variable_summaries(encoder.embedding.weight, epoch, "encoder_embeddings_weight")
-        variable_summaries(classifier.embedding.weight, epoch, "classifier_embeddings_weight")
-        writer.add_scalar('data/total_loss',train_loss_total, epoch)
-        writer.add_scalar('data/total_loss_average',train_loss_total/(BatchN*batch_size), epoch)
+        if args.tensor_board:
+            variable_summaries(encoder.embedding.weight, epoch, "encoder_embeddings_weight")
+            variable_summaries(classifier.embedding.weight, epoch, "classifier_embeddings_weight")
+            writer.add_scalar('data/total_loss',train_loss_total, epoch)
+            writer.add_scalar('data/total_loss_average',train_loss_total/(BatchN*batch_size), epoch)
 
 def evalIters(encoder, classifier, batch_size, print_every=100, learning_rate=0.0001, predict=False):
 
@@ -585,7 +596,7 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
         Eval_Log = ('%s: %d, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Epoch", epoch, "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
     else:
         print(Eval_Loss, Eval_Accuracy, Correct_Accuracy, Incorrect_Accuracy, Eval_Correct, Eval_PCorrect, Eval_NCorrect)
-    
+
         Eval_Log = ('%s %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f, %s: %.4f' % ("Evaluation Results:", "Evaluation Loss", Eval_Loss, "Evaluation Accuracy", Eval_Accuracy,"Evaluation PAccuracy", Correct_Accuracy, "Evaluation NAccuracy", Incorrect_Accuracy, "Total Correct", Eval_Correct, "Total PCorrect", Eval_PCorrect, "Total NCorrect", Eval_NCorrect))
     with open('./data/Evaluation.log', 'a') as f:
         f.write(Eval_Log+'\n')
@@ -714,7 +725,8 @@ if __name__== "__main__":
                 Classifier = Classifier.cuda()
         print("Dictionary and model built.")
         #print("iembedding tensor", iembedding_tensor)
-        writer.add_embedding(torch.from_numpy(iembedding_tensor), metadata=corpus.dictionary.feature2idx.keys())
+        if args.tensor_board:
+            writer.add_embedding(torch.from_numpy(iembedding_tensor), metadata=corpus.dictionary.feature2idx.keys())
         if (train_vectorize | (len(train_ip) == 0) | args.build_dict):
             print(" Vectorizing the training corpus now...")
             train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
@@ -736,7 +748,8 @@ if __name__== "__main__":
 
         criterion = nn.BCELoss()
         trainIters(Encoder, Classifier, args.batch_size, args.log_interval, args.lr, False)
-	writer.close()
+    if args.tensor_board:
+        writer.close()
 
     elif(args.mode == 'evaluate'):
         print("Preparing to evaluate the model")
