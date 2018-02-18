@@ -22,7 +22,7 @@ import errno
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from utils import get_models_dir
+from utils import get_models_dir, bcolors
 import extract_features
 import model as model
 from tensorboardX import SummaryWriter
@@ -127,27 +127,6 @@ if args.tensor_board:
 # Helper functions
 #-----------------------------------------------------------------------------#
 
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-    @staticmethod
-    def return_color(int_nu):
-        int_n = int_nu[0]
-        if int_n > 0.05:
-            return bcolors.OKGREEN
-        elif int_n < 0.01:
-            return bcolors.FAIL
-        elif int_n > 0.03:
-            return bcolors.OKBLUE
-        else:
-            return bcolors.WARNING
 
 class TensorContextDataset(torch.utils.data.Dataset):
     """Dataset wrapping data and target tensors.
@@ -408,7 +387,8 @@ def Predict(input_variable, target_variable, context, context_weights, encoder, 
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     '''
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1), mask1)
-    #PrintRandomAttentionVisualization(input_variable, attention_weights)
+    if args.debug:
+        PrintRandomAttentionVisualization(input_variable, attention_weights)
 
     final_output = final_output.transpose(0, 1)
     loss += criterion(final_output, target_variable)
@@ -445,8 +425,8 @@ def PredictRestInterface(input_variable, context_weights, encoder, classifier, m
     final_output = classifier(encoder_output[0], context, context_weights.transpose(0,1))
     '''
     final_output, attention_weights = classifier(encoder_output[0], encoder_outputs, context, context_weights.transpose(0,1))
-
-    #PrintRandomAttentionVisualization(input_variable, attention_weights)
+    if args.debug:
+        PrintRandomAttentionVisualization(input_variable, attention_weights)
 
     return(final_output.data[0], attention_weights)
 
