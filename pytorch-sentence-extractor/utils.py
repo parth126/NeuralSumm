@@ -64,3 +64,36 @@ def init_embedding(embedding_size, ndictionary, embedding_weights_df):
     assert temp_embedding_weights.shape == (ndictionary.__len__(), embedding_size)
     return temp_embedding_weights
     #self.embedding.weight.data.copy_(torch.from_numpy(temp_embedding_weights))
+
+def variable_summaries(var, epoch, name):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    mean = torch.mean(var)
+    writer.add_scalar('data' + name + 'mean', mean, epoch)
+    stddev = torch.sqrt(torch.mean((var - mean)*(var - mean)))
+    writer.add_scalar('data' + name + 'stddev', stddev, epoch)
+    writer.add_scalar('data' + name + 'max', torch.max(var), epoch)
+    writer.add_scalar('data' + name + 'min', torch.min(var), epoch)
+    writer.add_histogram('data' + name + 'histogram', var, epoch)
+
+
+
+
+def load_vectorization(DataFile):
+    nparray = np.zeros(0)
+    try:
+        nparray = np.load(args.data + '/' + DataFile + '.numpyarray.npy')
+        vectorize = False
+        print("Using exisiting numpy array")
+    except:
+        vectorize = True
+        print("Couldnot load exisiting numpy for " + DataFile +". Will require vectorization")
+        return nparray, vectorize
+    return torch.from_numpy(nparray), vectorize
+
+def save_vectorization(DataFile, nparray):
+    try:
+        filename = args.data + '/' + DataFile + '.numpyarray'
+        np.save(filename, nparray)
+        print("Saved numpy array to ", filename)
+    except:
+        print("Couldnot save numpy array!!")

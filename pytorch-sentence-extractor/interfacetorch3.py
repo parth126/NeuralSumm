@@ -22,7 +22,7 @@ import errno
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from utils import get_models_dir, bcolors, init_embedding
+from utils import get_models_dir, bcolors, init_embedding, variable_summaries, load_vectorization, save_vectorization
 import extract_features
 import model as model
 from tensorboardX import SummaryWriter
@@ -403,16 +403,6 @@ def PredictRestInterface(input_variable, context_weights, encoder, classifier, m
     return(final_output.data[0], attention_weights)
 
 
-def variable_summaries(var, epoch, name):
-    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-    mean = torch.mean(var)
-    writer.add_scalar('data' + name + 'mean', mean, epoch)
-    stddev = torch.sqrt(torch.mean((var - mean)*(var - mean)))
-    writer.add_scalar('data' + name + 'stddev', stddev, epoch)
-    writer.add_scalar('data' + name + 'max', torch.max(var), epoch)
-    writer.add_scalar('data' + name + 'min', torch.min(var), epoch)
-    writer.add_histogram('data' + name + 'histogram', var, epoch)
-
 #-----------------------------------------------------------------------------#
 # Training Iterator
 #-----------------------------------------------------------------------------#
@@ -560,25 +550,6 @@ def run_evaluation(valdataloader, encoder, classifier, epoch, current_ip, curren
     #writer.add_pr_curve("Evaluations", torch.FloatTensor(TargetS), torch.from_numpy(OutputS), epoch)
     print(Eval_Log)
 
-def load_vectorization(DataFile):
-    nparray = np.zeros(0)
-    try:
-        nparray = np.load(args.data + '/' + DataFile + '.numpyarray.npy')
-        vectorize = False
-        print("Using exisiting numpy array")
-    except:
-        vectorize = True
-        print("Couldnot load exisiting numpy for " + DataFile +". Will require vectorization")
-        return nparray, vectorize
-    return torch.from_numpy(nparray), vectorize
-
-def save_vectorization(DataFile, nparray):
-    try:
-        filename = args.data + '/' + DataFile + '.numpyarray'
-        np.save(filename, nparray)
-        print("Saved numpy array to ", filename)
-    except:
-        print("Couldnot save numpy array!!")
 
 #-----------------------------------------------------------------------------#
 # Main interface
