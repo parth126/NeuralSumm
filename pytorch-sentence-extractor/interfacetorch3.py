@@ -22,7 +22,10 @@ import errno
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from utils import get_models_dir, bcolors, init_embedding, variable_summaries, load_vectorization, save_vectorization
+from utils import get_models_dir, bcolors, init_embedding, build_model_from_scratch
+from utils import variable_summaries, load_vectorization, save_vectorization
+from utils import  load_models, load_dictionary, build_dictionary_from_scratch
+
 import extract_features
 import model as model
 from tensorboardX import SummaryWriter
@@ -571,9 +574,10 @@ if __name__== "__main__":
 
         embed_df = pd.read_pickle(args.data + '/' + Embed_Data)
 
-        train_ip, train_vectorize = load_vectorization(Train_Data)
-        valid_ip, valid_vectorize = load_vectorization(Valid_Data)
-        eval_ip, eval_vectorize = load_vectorization(Eval_Data)
+        if not args.build_dict:
+            train_ip, train_vectorize = load_vectorization(args, Train_Data)
+            valid_ip, valid_vectorize = load_vectorization(args, Valid_Data)
+            eval_ip, eval_vectorize = load_vectorization(args, Eval_Data)
 
     if(args.mode =='train'):
 
@@ -582,75 +586,16 @@ if __name__== "__main__":
         ''' Load and vectorize data '''
 
         if(args.load_existing):
-
-            try:
-                with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'rb') as input:
-                    corpus = pickle.load(input)
-                print("Using existing corpus Dictionary")
-            except:
-                print("Could not load existing corpus Dictionary. Does the file exist?")
-                sys.exit(-1)
-
-
-            try:
-                with open(get_models_dir(args) + 'Encoder.pt', 'rb') as f1:
-                    Encoder = torch.load(f1)
-                with open(get_models_dir(args) + 'Classifier.pt', 'rb') as f2:
-                    Classifier = torch.load(f2)
-                print("Using existing models")
-
-            except IOError as e:
-                print("Error: ", os.strerror(e.errno))
-                print("Could not load existing models. Building from scratch")
-                print("Building the initial models")
-                ntokens = len(corpus.dictionary)
-                ntopic = args.ntopic
-                iembedding_tensor = init_embedding(args.embed, corpus.dictionary, embed_df)
-                Encoder = model.EncoderRNN(args.model, ntokens, args.embed, args.nhid, args.nlayers, args.dropout, iembedding_tensor)
-                ''' Regular classifier without any attention
-                Classifier = model.AttentionClassifier(ntopic, args.nhid, args.hhid, args.cembed,  args.max_len, args.dropout)
-                '''
-                Classifier = model.AttentionClassifier(ntopic, args.nhid, args.hhid, args.cembed,  args.max_len, args.dropout)
-
-                if args.cuda:
-                   Encoder = Encoder.cuda()
-                   Classifier = Classifier.cuda()
-
+            corpus = load_dictionary(args)
+            Encoder, Classifier = load_models(args, True)
+            if Encoder is None or Classifier is None:
+                Encoder, Classifier = build_model_from_scratch(args, corpus, embed_df)
         else:
-
             if(args.build_dict):
-                print("Building the term Dictionary")
-                corpus = extract_features.Corpus()
-                corpus.add_to_dict(train_df, 'unigrams', 'sentence')
-                corpus.add_to_dict(valid_df, 'unigrams', 'sentence')
-                corpus.add_to_dict(eval_df, 'unigrams', 'sentence')
-
-                corpus.clean_dict(args.min_count)
-                with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'wb') as output:
-                    pickle.dump(corpus, output, pickle.HIGHEST_PROTOCOL)
-
+                corpus = build_dictionary_from_scratch(args, train_df, valid_df, eval_df)
             else:
-                try:
-                    with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'rb') as input:
-                        corpus = pickle.load(input)
-                    print("Using existing corpus Dictionary")
-                except:
-                    print("Could not load existing corpus Dictionary. Does the file exist?")
-                    sys.exit(-1)
-            iembedding_tensor = init_embedding(args.embed, corpus.dictionary, embed_df)
-            print("Building the initial models")
-            ntokens = len(corpus.dictionary)
-            ntopic = args.ntopic
-
-            Encoder = model.EncoderRNN(args.model, ntokens, args.embed, args.nhid, args.nlayers, args.dropout, iembedding_tensor)
-            ''' Regular classifier without any attention
-            Classifier = model.AttentionClassifier(ntopic, args.nhid, args.hhid, args.cembed,  args.max_len, args.dropout)
-            '''
-            Classifier = model.AttentionClassifier(ntopic, args.nhid, args.hhid, args.cembed,  args.max_len, args.dropout)
-
-            if args.cuda:
-                Encoder = Encoder.cuda()
-                Classifier = Classifier.cuda()
+                corpus = load_dictionary(args)
+                Encoder, Classifier = build_model_from_scratch(args, corpus, embed_df)
         print("Dictionary and model built.")
         #print("iembedding tensor", iembedding_tensor)
         if args.tensor_board:
@@ -658,7 +603,7 @@ if __name__== "__main__":
         if (train_vectorize | (len(train_ip) == 0) | args.build_dict):
             print(" Vectorizing the training corpus now...")
             train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
-            save_vectorization(Train_Data, train_ip)
+            save_vectorization(args, Train_Data, train_ip)
         train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
         train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
         train_doc_id = train_df.doc_id.as_matrix()
@@ -666,7 +611,7 @@ if __name__== "__main__":
         if (valid_vectorize | (len(valid_ip) == 0) | args.build_dict):
             print("Vectorizing valid dataframe now")
             valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
-            save_vectorization(Valid_Data, valid_ip)
+            save_vectorization(args, Valid_Data, valid_ip)
         valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1).tolist())
         valid_context_weights = corpus.vectorize_list(valid_df, 'topics', args.ntopic, 'context')
         valid_doc_id = valid_df.doc_id.as_matrix()
@@ -685,32 +630,13 @@ if __name__== "__main__":
         ''' Load and vectorize data '''
 
         print("Start")
-
-        try:
-            with open(get_models_dir(args) + 'Encoder.pt', 'rb') as f1:
-                Encoder = torch.load(f1)
-            with open(get_models_dir(args) + 'Classifier.pt', 'rb') as f2:
-                Classifier = torch.load(f2)
-            print("Using existing models")
-
-        except IOError as e:
-            print("Error: ", os.strerror(e.errno))
-            print("Could not load existing models. Do the files exist?")
-            sys.exit(-1)
-
-        try:
-            with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'rb') as input:
-                corpus = pickle.load(input)
-            print("Using existing Dictionary")
-        except:
-            print("Could not load existing Dictionary. Does the file exist?")
-            sys.exit(-1)
-
+        Encoder, Classifier = load_models(args)
+        corpus = load_dictionary(args)
         print("Dictionary and model loaded.")
         if (eval_vectorize | (len(eval_ip) == 0) | args.build_dict):
             print("Vectorizing eval dataframe now")
             eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
-            save_vectorization(Eval_Data, eval_ip)
+            save_vectorization(args, Eval_Data, eval_ip)
 
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
         eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
@@ -728,31 +654,13 @@ if __name__== "__main__":
         ''' Load and vectorize data '''
 
         print("Start")
-
-        try:
-            with open(get_models_dir(args) + 'Encoder.pt', 'rb') as f1:
-                Encoder = torch.load(f1)
-            with open(get_models_dir(args) + 'Classifier.pt', 'rb') as f2:
-                Classifier = torch.load(f2)
-            print("Using existing models")
-        except IOError as e:
-            print("Error: ", os.strerror(e.errno))
-            print("Could not load existing models. Do the files exist?")
-            sys.exit(-1)
-
-        try:
-            with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'rb') as input:
-                corpus = pickle.load(input)
-            print("Using existing corpus Dictionary")
-        except:
-            print("Could not load existing corpus Dictionary. Does the file exist?")
-            sys.exit(-1)
-
+        Encoder, Classifier = load_models(args)
+        corpus = load_dictionary(args)
         print("Dictionary and model loaded.")
         if (eval_vectorize | (len(eval_ip) == 0) | args.build_dict):
             print("Vectorizing eval dataframe now")
             eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
-            save_vectorization(Eval_Data, eval_ip)
+            save_vectorization(args, Eval_Data, eval_ip)
 
         eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
         eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
