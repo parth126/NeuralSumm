@@ -8,6 +8,12 @@ import extract_features
 import model as model
 import errno
 
+def get_initial_datapath(args):
+    if args.legal:
+        initial_data_path = "data/legal_data/"
+    else:
+        initial_data_path = "data/scientific_data/"
+    return initial_data_path
 
 def get_models_dir(args):
     return_directory = args.data + "/models/"

@@ -4,22 +4,34 @@ import pandas as pd
 import numpy as np
 import random
 from nltk import word_tokenize as wt
+from utils import get_initial_datapath
+import argparse
 
 typ = "small" #("small" or "all")
+parser = argparse.ArgumentParser(description='onvert matched sentences to dataframe')
+parser.add_argument('--legal', action="store_true",
+                    help='Run System on Legal data')
+parser.add_argument('--type', type=str, default='small',
+                    help='Create dry run files(small) or normal files(all)')
+parser.add_argument('--sort', type=str, default='length',
+                    help='Sort by length or docwise')
 
-if(typ == 'small'):
-    sentence_matching = './data/sentences.json.small'
-    data_folder = './data/papers.small'
-    context_file = './data/topic_documentwise.small'
+args = parser.parse_args()
+initial_data_path = get_initial_datapath(args)
+
+if(args.type == 'small'):
+    sentence_matching = initial_data_path + 'sentences.json.small'
+    data_folder = initial_data_path + 'tfidfprocessed_papers'
+    context_file = initial_data_path + 'topic_documentwise.small'
 else:
-    sentence_matching = './data/sentences.json'
-    data_folder = './data/papers'
-    context_file = './data/topic_documentwise'
-    
+    sentence_matching = initial_data_path + 'sentences.json'
+    data_folder = initial_data_path + 'tfidfprocessed_papers'
+    context_file = initial_data_path + 'topic_documentwise'
+
 min_words = 5
 max_words = 50
 
-sort_by = "length"  #("length" or "docid")
+sort_by = args.sort  #("length" or "docid")
 
 # Load sentence mapping to a dataframe
 with open(sentence_matching) as f:
@@ -42,6 +54,7 @@ body = []
 senlen = []
 
 for i in os.listdir(data_folder):
+    print(i)
     with open(data_folder+'/'+i) as f:
         f1 = json.load(f)
         abstract_sentences = f1["abstract_sentences"]
@@ -50,13 +63,13 @@ for i in os.listdir(data_folder):
             abstract.append([i, a, abstract_sentences[a]])
         for b in body_sentences:
             sent = body_sentences[b]
-            body.append([i, b, sent, len(wt(sent))])
+            body.append([i, b, sent, len(wt(sent['sentence']))])
 
 DF1 = pd.DataFrame(abstract, columns = ['doc_id', 'abstract_sid', 'abstract_sentence'])
 DF2 = pd.DataFrame(body, columns = ['doc_id', 'body_sid', 'body_sentence', 'senlen'])
 
 print("two complete")
-# Merge the three dataframes 
+# Merge the three dataframes
 
 DF4 = pd.merge(DF,DF1, on=['doc_id', 'abstract_sid'])
 DF5 = pd.merge(DF4,DF2, how='right',  on=['doc_id', 'body_sid'])
@@ -85,9 +98,9 @@ print("five complete")
 DF8 = pd.merge(DF6,DF7, on=['doc_id'])
 
 if(typ == 'small'):
-    DF8.to_pickle('./data/acl_data.pkl.small')
+    DF8.to_pickle(initial_data_path + 'acl_data.pkl.small')
 else:
-    DF8.to_pickle('./data/acl_data.pkl')
+    DF8.to_pickle(initial_data_path + 'acl_data.pkl')
 
 print("six complete")
 #Filter too small or too large sentences
@@ -132,17 +145,16 @@ print("seven complete")
 
 
 if(typ == 'small'):
-    DFTrain.to_pickle('./data/train_data.pkl.small')
-    DFValid.to_pickle('./data/valid_data.pkl.small')
-    DFEval.to_pickle('./data/eval_data.pkl.small')
+    DFTrain.to_pickle(initial_data_path + 'train_data.pkl.small')
+    DFValid.to_pickle(initial_data_path + '/valid_data.pkl.small')
+    DFEval.to_pickle(initial_data_path + 'eval_data.pkl.small')
 else:
     if(sort_by == "length"):
-        DFTrain.to_pickle('./data/train_data.pkl')
-        DFValid.to_pickle('./data/valid_data.pkl')
-        DFEval.to_pickle('./data/eval_data.pkl')
+        DFTrain.to_pickle(initial_data_path + 'train_data.pkl')
+        DFValid.to_pickle(initial_data_path + 'valid_data.pkl')
+        DFEval.to_pickle(initial_data_path + 'eval_data.pkl')
     else:
         print("here")
-        DFTrain.to_pickle('./data/train_docwise.pkl')
-        DFValid.to_pickle('./data/valid_docwise.pkl')
-        DFEval.to_pickle('./data/eval_docwise.pkl')
-    
+        DFTrain.to_pickle(initial_data_path + 'train_docwise.pkl')
+        DFValid.to_pickle(initial_data_path + 'valid_docwise.pkl')
+        DFEval.to_pickle(initial_data_path + 'eval_docwise.pkl')

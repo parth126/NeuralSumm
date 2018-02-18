@@ -12,6 +12,8 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 import json
 from pprint import pprint
 import io
+import argparse
+from utils import get_initial_datapath
 
 # Noun Part of Speech Tags used by NLTK
 # More can be found here
@@ -104,8 +106,14 @@ def rank_sentences(doc, abs_sent, doc_matrix, feature_names, top_n=2):
     return ranked_sents[:top_n]
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Select sentences matching')
+    parser.add_argument('--legal', action="store_true",
+                    help='Run System on Legal data')
+    args = parser.parse_args()
+    initial_data_path = get_initial_datapath(args)
     # Load corpus data used to train the TF-IDF Transformer
-    data = pickle.load(open('data/data.pkl', 'rb'))
+    data = pickle.load(open(initial_data_path + 'data.pkl', 'rb'))
     train_data = set(data)
     #print train_data
     # Fit and Transform the term frequencies into a vector
@@ -118,7 +126,7 @@ if __name__ == '__main__':
     tfidf = TfidfTransformer(norm="l2")
     tfidf.fit(freq_term_matrix)
     # Merge corpus data and new document data
-    files = os.listdir('data/processed_papers/')
+    files = os.listdir(initial_data_path +  'processed_papers/')
     json_array = {}
     for file in files:
         json_internal_array = {}
@@ -129,7 +137,7 @@ if __name__ == '__main__':
     	abs_sentences = {}
     	body_sentences = {}
         print(file)
-        json_data = json.load(open('data/processed_papers/'+file))
+        json_data = json.load(open(initial_data_path + 'processed_papers/'+file))
         if json_data["abstract_sentences"] is not None:
 	    abs_sentences = json_data["abstract_sentences"]
         if json_data["body_sentences"] is not None:
@@ -173,12 +181,12 @@ if __name__ == '__main__':
     	    kson_data_internal["body_sentences"][ids]['section_heading'] = body_sentences[ids]['section_heading']
     	    kson_data_internal["body_sentences"][ids]['tfidf'] = body_score.item(new_body_id)
     	    new_body_id = new_body_id + 1
-        with io.open('data/tfidfprocessed_papers/' + file, 'w', encoding='utf8') as json_file:
+        with io.open(initial_data_path + 'tfidfprocessed_papers/' + file, 'w', encoding='utf8') as json_file:
             j = json.dumps(kson_data_internal, indent=4, sort_keys=True, ensure_ascii=False)
             json_file.write(unicode(j))
             json_file.close()
 
-    with io.open('data/sentences.json', 'w', encoding='utf8') as json_file:
+    with io.open(initial_data_path + 'sentences.json', 'w', encoding='utf8') as json_file:
         j = json.dumps(json_array, indent=4, sort_keys=True, ensure_ascii=False)
         json_file.write(unicode(j))
         json_file.close()
