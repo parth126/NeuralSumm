@@ -22,6 +22,7 @@ import errno
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+from utils import get_models_dir
 import extract_features
 import model as model
 from tensorboardX import SummaryWriter
@@ -81,8 +82,10 @@ parser.add_argument('--weight1', type=float, default=1,
                     help='Weight for calculating weighted loss when target variable is 1')
 parser.add_argument('--tensor_board', type=bool, default=False,
                     help='Enables writing summary for TensorBoard')
-parser.add_argument('--legal', type=bool, default=False,
+parser.add_argument('--legal', action="store_true",
                     help='Run System on Legal data')
+parser.add_argument('--debug', action="store_true",
+                    help='Print Debug Logs')
 
 args = parser.parse_args()
 
@@ -109,9 +112,9 @@ if(args.dry_run == 1):
     Embed_Data = 'initial_embeddings.df'
 elif (args.legal):
     print("Training with legal Data")
-    Train_Data = 'train_data.pkl'
-    Valid_Data = 'valid_data.pkl'
-    Eval_Data = 'eval_data.pkl'
+    Train_Data = 'train_data_legal.pkl'
+    Valid_Data = 'valid_data_legal.pkl'
+    Eval_Data = 'eval_data_legal.pkl'
     Embed_Data = 'initial_embeddings_legal.df'
 else:
     Train_Data = 'train_docwise.pkl'
@@ -512,13 +515,13 @@ def trainIters(encoder, classifier, batch_size, print_every=100, learning_rate=0
         ''' Save the loss info batchwise, for every epoch '''
         filename1 = ('%s%d%s' % ("Encoder.", epoch,".pt"))
         filename2 = ('%s%d%s' % ("Classifier.", epoch,".pt"))
-        with open('./data/models/'+filename1, 'wb') as f:     # Saving the trained models for every epoch
+        with open(get_models_dir(args) + filename1, 'wb') as f:     # Saving the trained models for every epoch
             torch.save(encoder, f)
-        with open('./data/models/Encoder.pt', 'wb') as f:  # Latest copy to be used in next iteration or when resuming training
+        with open(get_models_dir(args) + 'Encoder.pt', 'wb') as f:  # Latest copy to be used in next iteration or when resuming training
             torch.save(encoder, f)
-        with open('./data/models/'+filename2, 'wb') as f:     # Saving the trained models for every epoch
+        with open(get_models_dir(args) + filename2, 'wb') as f:     # Saving the trained models for every epoch
             torch.save(classifier, f)
-        with open('./data/models/Classifier.pt', 'wb') as f:  # Latest copy to be used in next iteration or when resuming training
+        with open(get_models_dir(args) + 'Classifier.pt', 'wb') as f:  # Latest copy to be used in next iteration or when resuming training
             torch.save(classifier, f)
 
 
@@ -631,7 +634,7 @@ def save_vectorization(DataFile, nparray):
 if __name__== "__main__":
 
     try:
-        os.mkdir('./data/models')
+        os.mkdir(get_models_dir(args))
     except OSError as e:
         if e.errno == errno.EEXIST:
             print('Directory already exists. Existing models might be overwritten.')
@@ -657,7 +660,7 @@ if __name__== "__main__":
         if(args.load_existing):
 
             try:
-                with open('./data/models/corpus_dictionary.pkl', 'rb') as input:
+                with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'rb') as input:
                     corpus = pickle.load(input)
                 print("Using existing corpus Dictionary")
             except:
@@ -666,9 +669,9 @@ if __name__== "__main__":
 
 
             try:
-                with open('./data/models/Encoder.pt', 'rb') as f1:
+                with open(get_models_dir(args) + 'Encoder.pt', 'rb') as f1:
                     Encoder = torch.load(f1)
-                with open('./data/models/Classifier.pt', 'rb') as f2:
+                with open(get_models_dir(args) + 'Classifier.pt', 'rb') as f2:
                     Classifier = torch.load(f2)
                 print("Using existing models")
 
@@ -698,12 +701,12 @@ if __name__== "__main__":
                 corpus.add_to_dict(valid_df, 'unigrams', 'sentence')
                 corpus.add_to_dict(eval_df, 'unigrams', 'sentence')
 
-                with open('./data/models/corpus_dictionary.pkl', 'wb') as output:
+                with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'wb') as output:
                     pickle.dump(corpus, output, pickle.HIGHEST_PROTOCOL)
 
             else:
                 try:
-                    with open('./data/models/corpus_dictionary.pkl', 'rb') as input:
+                    with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'rb') as input:
                         corpus = pickle.load(input)
                     print("Using existing corpus Dictionary")
                 except:
@@ -759,9 +762,9 @@ if __name__== "__main__":
         print("Start")
 
         try:
-            with open('./data/models/Encoder.pt', 'rb') as f1:
+            with open(get_models_dir(args) + 'Encoder.pt', 'rb') as f1:
                 Encoder = torch.load(f1)
-            with open('./data/models/Classifier.pt', 'rb') as f2:
+            with open(get_models_dir(args) + 'Classifier.pt', 'rb') as f2:
                 Classifier = torch.load(f2)
             print("Using existing models")
 
@@ -771,7 +774,7 @@ if __name__== "__main__":
             sys.exit(-1)
 
         try:
-            with open('./data/models/corpus_dictionary.pkl', 'rb') as input:
+            with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'rb') as input:
                 corpus = pickle.load(input)
             print("Using existing Dictionary")
         except:
@@ -802,9 +805,9 @@ if __name__== "__main__":
         print("Start")
 
         try:
-            with open('./data/models/Encoder.pt', 'rb') as f1:
+            with open(get_models_dir(args) + 'Encoder.pt', 'rb') as f1:
                 Encoder = torch.load(f1)
-            with open('./data/models/Classifier.pt', 'rb') as f2:
+            with open(get_models_dir(args) + 'Classifier.pt', 'rb') as f2:
                 Classifier = torch.load(f2)
             print("Using existing models")
         except IOError as e:
@@ -813,7 +816,7 @@ if __name__== "__main__":
             sys.exit(-1)
 
         try:
-            with open('./data/models/corpus_dictionary.pkl', 'rb') as input:
+            with open(get_models_dir(args) + 'corpus_dictionary.pkl', 'rb') as input:
                 corpus = pickle.load(input)
             print("Using existing corpus Dictionary")
         except:
