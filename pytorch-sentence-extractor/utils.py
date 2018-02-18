@@ -80,10 +80,14 @@ def variable_summaries(var, epoch, name):
     writer.add_scalar('data' + name + 'min', torch.min(var), epoch)
     writer.add_histogram('data' + name + 'histogram', var, epoch)
 
-def load_vectorization(args, DataFile):
+def load_vectorization(args, DataFile, list=False):
+    if list:
+        folder = '/vectorization_list/'
+    else:
+        folder = '/vectorization/'
     nparray = np.zeros(0)
     try:
-        nparray = np.load(args.data + '/vectorization/' + DataFile + '.numpyarray.npy')
+        nparray = np.load(args.data + folder + DataFile + '.numpyarray.npy')
         vectorize = False
         print("Using exisiting numpy array")
     except:
@@ -92,20 +96,47 @@ def load_vectorization(args, DataFile):
         return nparray, vectorize
     return torch.from_numpy(nparray), vectorize
 
-def save_vectorization(args, DataFile, nparray):
+def save_vectorization(args, DataFile, nparray, list=False):
+    if list:
+        folder = '/vectorization_list/'
+    else:
+        folder = '/vectorization/'
     try:
-        os.mkdir(args.data + '/vectorization/')
+        os.mkdir(args.data + folder)
     except OSError as e:
         if e.errno == errno.EEXIST:
             print(' Vectorization Directory already exists. Existing models might be overwritten.')
         else:
             raise
     try:
-        filename = args.data + '/vectorization/' + DataFile + '.numpyarray'
+        filename = args.data + folder + DataFile + '.numpyarray'
         np.save(filename, nparray)
         print("Saved numpy array to ", filename)
     except:
         print("Couldnot save numpy array!!")
+
+def handle_vectorization(args, df, data_folder_name, corpus):
+    #Try loading vectorization first
+    do_vectorize = True
+    ip = np.zeros(0)
+    weights = np.zeros(0)
+    if (not args.build_dict) and (not args.vectorize):
+        ip, do_vectorize = load_vectorization(args, data_folder_name)
+        if not do_vectorize:
+            weights, do_vectorize = load_vectorization(args, data_folder_name, True)
+
+    # It's vectorized is not available then vectorize
+    if ( args.build_dict | args.vectorize | do_vectorize | (len(ip) == 0) | (len(weights) == 0)):
+        print(" Vectorizing the corpus now...")
+        ip = corpus.vectorize(df, 'unigrams', args.max_len, 'sentence')
+        save_vectorization(args, data_folder_name, ip)
+        weights = corpus.vectorize_list(df, 'topics', args.ntopic, 'context')
+        save_vectorization(args, data_folder_name, weights, True)
+    #Load other fields
+    op = torch.FloatTensor(np.expand_dims(df.is_in_abstract.as_matrix(), 1).tolist())
+    doc_id = df.doc_id.as_matrix()
+    body_sid = df.body_sid.as_matrix()
+    return ip, op, weights, doc_id, body_sid
 
 def load_models(args, build=False):
     try:

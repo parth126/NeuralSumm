@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 from utils import get_models_dir, bcolors, init_embedding, build_model_from_scratch
-from utils import variable_summaries, load_vectorization, save_vectorization
+from utils import variable_summaries, load_vectorization, save_vectorization, handle_vectorization
 from utils import  load_models, load_dictionary, build_dictionary_from_scratch
 
 import extract_features
@@ -89,6 +89,9 @@ parser.add_argument('--legal', action="store_true",
                     help='Run System on Legal data')
 parser.add_argument('--debug', action="store_true",
                     help='Print Debug Logs')
+parser.add_argument('--vectorize', action="store_true",
+                    help='Force Re vectorize corpus')
+
 parser.add_argument('--min_count', type=int, default=5,
                     help='Minimum frequency above which words will be retained')
 
@@ -574,11 +577,6 @@ if __name__== "__main__":
 
         embed_df = pd.read_pickle(args.data + '/' + Embed_Data)
 
-        if not args.build_dict:
-            train_ip, train_vectorize = load_vectorization(args, Train_Data)
-            valid_ip, valid_vectorize = load_vectorization(args, Valid_Data)
-            eval_ip, eval_vectorize = load_vectorization(args, Eval_Data)
-
     if(args.mode =='train'):
 
         print("Preparing to Train the model")
@@ -600,23 +598,9 @@ if __name__== "__main__":
         #print("iembedding tensor", iembedding_tensor)
         if args.tensor_board:
             writer.add_embedding(torch.from_numpy(iembedding_tensor), metadata=corpus.dictionary.feature2idx.keys())
-        if (train_vectorize | (len(train_ip) == 0) | args.build_dict):
-            print(" Vectorizing the training corpus now...")
-            train_ip = corpus.vectorize(train_df, 'unigrams', args.max_len, 'sentence')
-            save_vectorization(args, Train_Data, train_ip)
-        train_op = torch.FloatTensor(np.expand_dims(train_df.is_in_abstract.as_matrix(), 1).tolist())
-        train_context_weights = corpus.vectorize_list(train_df, 'topics', args.ntopic, 'context')
-        train_doc_id = train_df.doc_id.as_matrix()
-        train_body_sid = train_df.body_sid.as_matrix()
-        if (valid_vectorize | (len(valid_ip) == 0) | args.build_dict):
-            print("Vectorizing valid dataframe now")
-            valid_ip = corpus.vectorize(valid_df, 'unigrams', args.max_len, 'sentence')
-            save_vectorization(args, Valid_Data, valid_ip)
-        valid_op = torch.FloatTensor(np.expand_dims(valid_df.is_in_abstract.as_matrix(),1).tolist())
-        valid_context_weights = corpus.vectorize_list(valid_df, 'topics', args.ntopic, 'context')
-        valid_doc_id = valid_df.doc_id.as_matrix()
-        valid_body_sid = valid_df.body_sid.as_matrix()
 
+        train_ip, train_op, train_context_weights, train_doc_id, train_body_sid = handle_vectorization(args, train_df, Train_Data, corpus)
+        valid_ip, valid_op, valid_context_weights, valid_doc_id, valid_body_sid = handle_vectorization(args, valid_df, Valid_Data, corpus)
         print("Corpus and Context Vectorized. Starting Training...")
 
         criterion = nn.BCELoss()
@@ -633,16 +617,7 @@ if __name__== "__main__":
         Encoder, Classifier = load_models(args)
         corpus = load_dictionary(args)
         print("Dictionary and model loaded.")
-        if (eval_vectorize | (len(eval_ip) == 0) | args.build_dict):
-            print("Vectorizing eval dataframe now")
-            eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
-            save_vectorization(args, Eval_Data, eval_ip)
-
-        eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
-        eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
-        eval_doc_id = eval_df.doc_id.as_matrix()
-        eval_body_sid = eval_df.body_sid.as_matrix()
-
+        eval_ip, eval_op, eval_context_weights, eval_doc_id, eval_body_sid = handle_vectorization(args, eval_df, Eval_Data, corpus)
         print("Corpus and context Vectorized. Starting Evaluation...")
 
         criterion = nn.BCELoss()
@@ -657,16 +632,7 @@ if __name__== "__main__":
         Encoder, Classifier = load_models(args)
         corpus = load_dictionary(args)
         print("Dictionary and model loaded.")
-        if (eval_vectorize | (len(eval_ip) == 0) | args.build_dict):
-            print("Vectorizing eval dataframe now")
-            eval_ip = corpus.vectorize(eval_df, 'unigrams', args.max_len, 'sentence')
-            save_vectorization(args, Eval_Data, eval_ip)
-
-        eval_op = torch.FloatTensor(np.expand_dims(eval_df.is_in_abstract.as_matrix(),1).tolist())
-        eval_context_weights = corpus.vectorize_list(eval_df, 'topics', args.ntopic, 'context')
-        eval_doc_id = eval_df.doc_id.as_matrix()
-        eval_body_sid = eval_df.body_sid.as_matrix()
-
+        eval_ip, eval_op, eval_context_weights, eval_doc_id, eval_body_sid = handle_vectorization(args, eval_df, Eval_Data, corpus)
         print("Corpus Vectorized. Starting Prediction...")
 
         criterion = nn.BCELoss()
