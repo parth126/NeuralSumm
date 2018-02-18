@@ -22,11 +22,11 @@ initial_data_path = get_initial_datapath(args)
 if(args.type == 'small'):
     sentence_matching = initial_data_path + 'sentences.json.small'
     data_folder = initial_data_path + 'tfidfprocessed_papers'
-    context_file = initial_data_path + 'topic_documentwise.small'
+    context_file = initial_data_path + 'lda/topic_documentwise'
 else:
     sentence_matching = initial_data_path + 'sentences.json'
     data_folder = initial_data_path + 'tfidfprocessed_papers'
-    context_file = initial_data_path + 'topic_documentwise'
+    context_file = initial_data_path + 'lda/topic_documentwise'
 
 min_words = 5
 max_words = 50
