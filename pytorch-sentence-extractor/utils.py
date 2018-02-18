@@ -1,5 +1,6 @@
 # encoding: utf-8
-
+import torch
+import numpy as np
 
 def get_models_dir(args):
     return_directory = args.data + "/models/"
@@ -30,3 +31,36 @@ class bcolors:
             return bcolors.OKBLUE
         else:
             return bcolors.WARNING
+
+
+
+def init_embedding(embedding_size, ndictionary, embedding_weights_df):
+    if not ((ndictionary) or (embedding_weights_df )):
+        return
+    temp_embedding_weights = []
+    temp_embedding_weights_object = {}
+    found_embedding_weights = 0
+    notfound_embedding_weights = 0
+    for _,tok in embedding_weights_df.iterrows():
+        token = tok['word']
+        embedding = tok['embedding']
+        if ndictionary.feature2idx.has_key(token):
+            temp_embedding_weights_object[ndictionary.feature2idx[token]] = embedding
+    for i in range(len(ndictionary.feature2idx)):
+        if temp_embedding_weights_object.has_key(i):
+            #print("Embedding size", i, len(temp_embedding_weights_object[i]), embedding_size)
+            assert len(temp_embedding_weights_object[i]) == embedding_size
+            temp_embedding_weights.append(temp_embedding_weights_object[i])
+            found_embedding_weights += 1
+        else:
+            #print("Not found embedding ", i, ndictionary.idx2feature[i])
+            tensorinit = torch.FloatTensor(1, embedding_size)
+            numpyarrayinit = torch.nn.init.xavier_normal(tensorinit).numpy()[0].tolist()
+            temp_embedding_weights.append(numpyarrayinit)
+            notfound_embedding_weights += 1
+    print("Found Embedding weights for: ", found_embedding_weights, " Not found for : ", notfound_embedding_weights)
+    temp_embedding_weights = np.array(temp_embedding_weights, dtype='f')
+    print(temp_embedding_weights.shape)
+    assert temp_embedding_weights.shape == (ndictionary.__len__(), embedding_size)
+    return temp_embedding_weights
+    #self.embedding.weight.data.copy_(torch.from_numpy(temp_embedding_weights))
